@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Pickmysong",
+    "slug": "pickmysong",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "pickmysong",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#000000",
+    "splash": {
+      "backgroundColor": "#000000",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pickmysong.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000"
+      },
+      "package": "com.pickmysong.app"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
