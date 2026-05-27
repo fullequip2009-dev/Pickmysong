@@ -4,19 +4,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const NAV_LINKS = [
-  { href: '/discover', label: 'Descubrir', icon: '\uD83D\uDD0D' },
-  { href: '/playlists', label: 'Playlists', icon: '\uD83C\uDFB6' },
-  { href: '/artists', label: 'Artistas', icon: '\uD83C\uDFA4' },
-  { href: '/venues', label: 'Locales', icon: '\uD83C\uDFAA' },
-  { href: '/dashboard', label: 'Dashboard', icon: '\uD83D\uDCCA' },
+  { href: '/discover', label: 'Descubrir', icon: '🔍' },
+  { href: '/playlists', label: 'Playlists', icon: '🎶' },
+  { href: '/artists', label: 'Artistas', icon: '🎤' },
+  { href: '/venues', label: 'Locales', icon: '🏪' },
+  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
 ];
 
 const MOBILE_LINKS = [
-  { href: '/', label: 'Inicio', icon: '\uD83C\uDFE0' },
-  { href: '/discover', label: 'Descubrir', icon: '\uD83D\uDD0D' },
-  { href: '/playlists', label: 'Playlists', icon: '\uD83C\uDFB6' },
-  { href: '/artists', label: 'Artistas', icon: '\uD83C\uDFA4' },
-  { href: '/venues', label: 'Locales', icon: '\uD83C\uDFAA' },
+  { href: '/', label: 'Inicio', icon: '🏠' },
+  { href: '/discover', label: 'Descubrir', icon: '🔍' },
+  { href: '/playlists', label: 'Playlists', icon: '🎶' },
+  { href: '/artists', label: 'Artistas', icon: '🎤' },
+  { href: '/venues', label: 'Locales', icon: '🏪' },
 ];
 
 export function Navbar() {
@@ -24,65 +24,102 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl">\uD83C\uDFB5</span>
-            <span className="font-black tracking-tighter text-white text-lg">
-              Pick<span className="text-purple-400">my</span>song
-            </span>
-          </Link>
+      {/* Desktop Navbar */}
+      <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 items-center justify-between px-6 py-4 bg-black/80 backdrop-blur-xl border-b border-white/5">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 group">
+          <span className="text-2xl">🎵</span>
+          <span className="text-lg font-black tracking-tighter text-white group-hover:text-purple-400 transition-colors">
+            Pick<span className="text-purple-400">my</span>song
+          </span>
+        </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
+        {/* Nav Links */}
+        <div className="flex items-center gap-1">
+          {NAV_LINKS.map((link) => {
+            const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
+            return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
-                  pathname === link.href
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isActive
                     ? 'bg-white/10 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span>{link.icon}</span>
-                <span>{link.label}</span>
+                <span className="text-base">{link.icon}</span>
+                {link.label}
+                {link.href === '/venues' && (
+                  <span className="ml-1 w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Locales activos" />
+                )}
               </Link>
-            ))}
-          </nav>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Link
-              href="/dashboard"
-              className={`hidden sm:block rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
-                pathname === '/dashboard'
-                  ? 'border-purple-500/50 bg-purple-600/20 text-purple-300'
-                  : 'border-white/10 text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              \uD83C\uDFAA Para locales
-            </Link>
-            <button className="rounded-full bg-purple-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-purple-500 transition-colors">
-              Iniciar sesi\u00f3n
-            </button>
-          </div>
+            );
+          })}
         </div>
-      </header>
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-white/5 bg-black/95 px-2 py-3 backdrop-blur-xl">
-        {MOBILE_LINKS.map((link) => (
+        {/* Auth / Profile */}
+        <div className="flex items-center gap-3">
           <Link
-            key={link.href}
-            href={link.href}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1 text-xs transition-colors ${pathname === link.href ? 'text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
+            href="/auth"
+            className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
           >
-            <span className="text-lg leading-none">{link.icon}</span>
-            <span>{link.label}</span>
+            Iniciar sesión
           </Link>
-        ))}
+          <Link
+            href="/auth"
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-purple-500/20"
+          >
+            Registrarse
+          </Link>
+          <Link
+            href="/profile"
+            className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white text-base hover:scale-105 transition-transform"
+            title="Mi perfil"
+          >
+            🎧
+          </Link>
+        </div>
+      </nav>
+
+      {/* Desktop spacer */}
+      <div className="hidden md:block h-[73px]" />
+
+      {/* Mobile Bottom Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-t border-white/10 px-2 pb-safe">
+        <div className="flex items-center justify-around py-2">
+          {MOBILE_LINKS.map((link) => {
+            const isActive = link.href === '/'
+              ? pathname === '/'
+              : pathname === link.href || pathname?.startsWith(link.href + '/');
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+                  isActive ? 'text-white' : 'text-gray-600'
+                }`}
+              >
+                <span className="text-xl">{link.icon}</span>
+                <span className={`text-[10px] font-semibold ${isActive ? 'text-purple-400' : ''}`}>
+                  {link.label}
+                </span>
+              </Link>
+            );
+          })}
+          {/* Profile link */}
+          <Link
+            href="/profile"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+              pathname === '/profile' ? 'text-white' : 'text-gray-600'
+            }`}
+          >
+            <span className="text-xl">🎧</span>
+            <span className={`text-[10px] font-semibold ${pathname === '/profile' ? 'text-purple-400' : ''}`}>
+              Perfil
+            </span>
+          </Link>
+        </div>
       </nav>
     </>
   );
