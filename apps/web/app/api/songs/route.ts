@@ -1,27 +1,87 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSongs, createSong } from '../../../lib/db';
+import { NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase';
+import { getSongs, createSong } from '@/lib/db';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const genre = searchParams.get('genre') || undefined;
+  const limit = parseInt(searchParams.get('limit') || '50');
+  const offset = parseInt(searchParams.get('offset') || '0');
+
   try {
-    const { searchParams } = new URL(request.url);
-    const genre  = searchParams.get('genre')  ?? undefined;
-    const limit  = Number(searchParams.get('limit')  ?? 50);
-    const offset = Number(searchParams.get('offset') ?? 0);
-    const { data, total } = getSongs({ genre, limit, offset });
-    return NextResponse.json({ data, meta: { total, page: Math.floor(offset / limit) + 1, limit } }, { status: 200 });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to fetch songs', details: String(err) }, { status: 500 });
+    // Try Supabase first
+    const supabase = await createServerSupabaseClient();
+    let query = supabase
+      .from('songs')
+      .select('*')
+      .order('votes', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (genre && genre !== 'Todos') {
+      query = query.ilike('genre', `%${genre}%`);
+    }
+
+    const { data, error, count } = await query;
+
+    if (!error && data) {
+      // Map DB columns to app types
+      const songs = data.map((s) => ({
+        id: s.id,
+        title: s.title,
+        artist: s.artist,
+        genre: s.genre,
+        bpm: s.bpm,
+        votes: s.votes,
+        plays: s.plays,
+        cover: s.cover,
+        color: s.color,
+        trend: s.trend,
+        duration: s.duration,
+        createdAt: s.created_at,
+        updatedAt: s.updated_at,
+      }));
+      return NextResponse.json({ data: songs, total: count ?? songs.length });
+    }
+  } catch {
+    // Fall through to mock DB
   }
+
+  // Fallback: in-memory mock DB
+  const result = getSongs({ genre, limit, offset });
+  return NextResponse.json(result);
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    if (!body.title?.trim()) return NextResponse.json({ error: 'title is required' }, { status: 400 });
-    if (!body.artist?.trim()) return NextResponse.json({ error: 'artist is required' }, { status: 400 });
+
+    // Try Supabase first
+    try {
+      const supabase = await createServerSupabaseClient();
+      const { data, error } = await supabase
+        .from('songs')
+        .insert({
+          title: body.title,
+          artist: body.artist,
+          genre: body.genre || 'Electronic',
+          bpm: body.bpm || 120,
+          cover: body.cover || '🎵',
+          color: body.color || 'from-purple-600 to-pink-600',
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        return NextResponse.json(data, { status: 201 });
+      }
+    } catch {
+      // Fall through to mock DB
+    }
+
+    // Fallback: in-memory mock DB
     const song = createSong(body);
-    return NextResponse.json({ data: song }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to create song', details: String(err) }, { status: 500 });
+    return NextResponse.json(song, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
