@@ -1,27 +1,41 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { voteSong } from '../../../../../lib/db';
+import { NextResponse } from 'next/server';
+import { createServerSupabaseClient } from '@/lib/supabase';
+import { voteSong } from '@/lib/db';
 
-// POST /api/songs/[id]/vote
-// Body: { userId: string }  (use fingerprint or auth token in production)
 export async function POST(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
+  const songId = params.id;
+
   try {
-    const { userId } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const userId: string = body.userId || 'guest-' + Math.random().toString(36).slice(2, 9);
 
-    if (!userId?.trim()) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    // Try Supabase RPC (atomic toggle_vote function)
+    try {
+      const supabase = await createServerSupabaseClient();
+
+      const { data, error } = await supabase.rpc('toggle_vote', {
+        p_song_id: songId,
+        p_user_id: userId,
+      });
+
+      if (!error && data) {
+        return NextResponse.json(data);
+      }
+    } catch {
+      // Fall through to mock DB
     }
 
-    const result = voteSong(params.id, userId);
-
+    // Fallback: in-memory mock DB
+    const result = voteSong(songId, userId);
     if (!result) {
-      return NextResponse.json({ error: 'Song not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Canción no encontrada' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: { songId: params.id, ...result } }, { status: 200 });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to vote', details: String(err) }, { status: 500 });
+    return NextResponse.json(result);
+  } catch {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
