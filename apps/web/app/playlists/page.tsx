@@ -1,118 +1,139 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const PLAYLISTS = [
-  { id: '1', name: 'Noches de Neón', description: 'Para cuando la ciudad no duerme', songs: 24, likes: 847, cover: '\uD83C\uDF19', color: 'from-blue-900 to-purple-900', tags: ['Electronic', 'Ambient'] },
-  { id: '2', name: 'Trap Moda', description: 'Los beats que visten mejor', songs: 18, likes: 623, cover: '\uD83D\uDC8E', color: 'from-gray-900 to-zinc-800', tags: ['Trap', 'Hip-hop'] },
-  { id: '3', name: 'Funk do Futuro', description: 'El funk que viene del ma\u00f1ana', songs: 31, likes: 1240, cover: '\uD83D\uDD25', color: 'from-orange-900 to-red-900', tags: ['Funk', 'Electronic'] },
-  { id: '4', name: 'Soul & Seda', description: 'Suavidad con actitud', songs: 15, likes: 512, cover: '\uD83C\uDF38', color: 'from-pink-900 to-rose-900', tags: ['R&B', 'Soul'] },
-  { id: '5', name: 'Concreto y Oro', description: 'Del asfalto al podio', songs: 22, likes: 934, cover: '\uD83C\uDFC6', color: 'from-yellow-900 to-amber-900', tags: ['Grime', 'Trap'] },
-  { id: '6', name: 'Verde Selva', description: 'Naturaleza y ritmo', songs: 19, likes: 421, cover: '\uD83C\uDF3F', color: 'from-emerald-900 to-green-900', tags: ['Afrobeat', 'World'] },
-];
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  genre?: string;
+  votes: number;
+  coverUrl?: string;
+}
+
+interface Playlist {
+  id: string;
+  name: string;
+  venueId?: string;
+  venueName?: string;
+  description?: string;
+  coverUrl?: string;
+  songCount?: number;
+  totalVotes?: number;
+  isActive?: boolean;
+  genre?: string;
+  songs?: Song[];
+}
 
 export default function PlaylistsPage() {
-  const [liked, setLiked] = useState(new Set());
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'active'>('all');
 
-  const toggleLike = (id) => {
-    setLiked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
-      return next;
-    });
-  };
+  useEffect(() => {
+    fetch('/api/playlists')
+      .then(r => r.json())
+      .then(data => {
+        setPlaylists(Array.isArray(data) ? data : (data.playlists || []));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filtered = activeFilter === 'active' ? playlists.filter(p => p.isActive) : playlists;
+  const totalVotesAll = playlists.reduce((acc, p) => acc + (p.totalVotes || 0), 0);
+  const activePlaylists = playlists.filter(p => p.isActive).length;
 
   return (
-    <main className="min-h-screen bg-black text-white pb-20 md:pb-0">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl">\uD83C\uDFB5</span>
-            <span className="font-black tracking-tighter text-white">Pick<span className="text-purple-400">my</span>song</span>
-          </Link>
-          <button className="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition-colors">
-            Iniciar sesi\u00f3n
-          </button>
+    <div className="min-h-screen bg-black text-white">
+      <div className="relative overflow-hidden bg-gradient-to-b from-purple-950/40 to-black pt-24 pb-12">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 left-1/3 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-10 right-1/4 w-56 h-56 bg-pink-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
-      </header>
-
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        {/* Page header */}
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tighter text-white md:text-4xl">Playlists</h1>
-            <p className="mt-1 text-gray-400">Curadas por la comunidad. Escogidas por el estilo.</p>
+        <div className="relative max-w-5xl mx-auto px-4">
+          <h1 className="text-4xl md:text-5xl font-black mb-3">
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Playlists</span>
+          </h1>
+          <p className="text-gray-400 text-lg mb-6">Las playlists votadas por el p&#250;blico en tiempo real</p>
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center gap-2"><span className="text-2xl font-black text-white">{playlists.length}</span><span className="text-gray-500 text-sm">playlists totales</span></div>
+            <div className="flex items-center gap-2"><span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" /><span className="text-2xl font-black text-green-400">{activePlaylists}</span><span className="text-gray-500 text-sm">activas ahora</span></div>
+            <div className="flex items-center gap-2"><span className="text-2xl font-black text-purple-400">{totalVotesAll.toLocaleString()}</span><span className="text-gray-500 text-sm">votos totales</span></div>
           </div>
-          <button className="rounded-full border border-purple-500/50 bg-purple-600/20 px-4 py-2 text-sm font-semibold text-purple-300 hover:bg-purple-600/30 transition-all">
-            + Crear playlist
-          </button>
-        </div>
-
-        {/* Stats bar */}
-        <div className="mb-8 flex gap-6 rounded-2xl border border-white/5 bg-white/3 p-4">
-          {[
-            { label: 'Playlists', value: '128' },
-            { label: 'Canciones', value: '2.4K' },
-            { label: 'Oyentes', value: '18K' },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="text-xl font-black text-white">{stat.value}</p>
-              <p className="text-xs text-gray-500">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PLAYLISTS.map((playlist) => (
-            <div
-              key={playlist.id}
-              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/3 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:scale-[1.02]"
-            >
-              {/* Cover */}
-              <div className={`flex h-40 items-center justify-center bg-gradient-to-br text-6xl ${playlist.color}`}>
-                {playlist.cover}
-              </div>
-
-              {/* Content */}
-              <div className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-bold text-white">{playlist.name}</h3>
-                    <p className="mt-0.5 text-xs text-gray-400">{playlist.description}</p>
-                  </div>
-                  <button
-                    onClick={() => toggleLike(playlist.id)}
-                    className="shrink-0 text-xl transition-transform hover:scale-110"
-                  >
-                    {liked.has(playlist.id) ? '\uD83D\uDC9C' : '\uD83E\uDD0D'}
-                  </button>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {playlist.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-gray-500">{tag}</span>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-                  <span>{playlist.songs} canciones</span>
-                  <span>{(liked.has(playlist.id) ? playlist.likes + 1 : playlist.likes).toLocaleString()} me gusta</span>
-                </div>
-
-                <Link
-                  href={`/playlists/${playlist.id}`}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 py-2 text-sm font-medium text-white hover:bg-white/10 transition-all border border-white/5"
-                >
-                  <span>\uD83C\uDFB5</span> Escuchar
-                </Link>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
-    </main>
+
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="flex gap-2 mb-8">
+          {(['all', 'active'] as const).map(f => (
+            <button key={f} onClick={() => setActiveFilter(f)} className={activeFilter === f ? 'px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white' : 'px-5 py-2 rounded-full text-sm font-semibold bg-gray-900/80 border border-white/10 text-gray-400 hover:text-purple-300'}>
+              {f === 'all' ? 'Todas' : '&#9679; Activas'}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="space-y-4">{[...Array(4)].map((_, i) => (<div key={i} className="bg-gray-900/40 rounded-2xl p-5 animate-pulse"><div className="flex items-center gap-4"><div className="w-16 h-16 bg-gray-800 rounded-xl" /><div className="flex-1 space-y-2"><div className="h-5 bg-gray-800 rounded w-2/3" /><div className="h-4 bg-gray-800 rounded w-1/3" /></div></div></div>))}</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-24"><p className="text-5xl mb-4">&#127925;</p><p className="text-gray-400">No hay playlists disponibles</p></div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map(playlist => (
+              <div key={playlist.id} className="bg-gray-900/50 border border-white/10 hover:border-purple-500/30 rounded-2xl overflow-hidden transition-all">
+                <button onClick={() => setExpanded(expanded === playlist.id ? null : playlist.id)} className="w-full flex items-center gap-4 p-5 text-left group">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                    {playlist.coverUrl ? (<img src={playlist.coverUrl} alt={playlist.name} className="w-full h-full object-cover" />) : (<div className="w-full h-full bg-gradient-to-br from-purple-800 to-pink-800 flex items-center justify-center text-2xl">&#127925;</div>)}
+                    {playlist.isActive && (<div className="absolute inset-0 bg-black/30 flex items-center justify-center"><span className="w-3 h-3 bg-green-400 rounded-full animate-pulse" /></div>)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="text-white font-bold text-lg group-hover:text-purple-300 transition-colors truncate">{playlist.name}</h3>
+                      {playlist.isActive && (<span className="flex-shrink-0 px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full text-xs text-green-400 font-medium">&#9679; LIVE</span>)}
+                      {playlist.genre && (<span className="flex-shrink-0 px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-xs text-purple-300">{playlist.genre}</span>)}
+                    </div>
+                    {playlist.venueName && (<Link href={'/venues/' + playlist.venueId} onClick={e => e.stopPropagation()} className="text-purple-400 text-sm hover:text-purple-300 transition-colors">&#127979; {playlist.venueName}</Link>)}
+                    {playlist.description && (<p className="text-gray-500 text-sm mt-1 truncate">{playlist.description}</p>)}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className="text-gray-300 font-bold">{playlist.songCount || 0} canciones</span>
+                    <span className="text-purple-400 text-sm">{(playlist.totalVotes || 0).toLocaleString()} votos</span>
+                    <span className="text-gray-600 text-xs mt-1">{expanded === playlist.id ? '&#9650; cerrar' : '&#9660; ver lista'}</span>
+                  </div>
+                </button>
+                {expanded === playlist.id && playlist.songs && playlist.songs.length > 0 && (
+                  <div className="border-t border-white/5 px-5 pb-5">
+                    <div className="mt-4 space-y-2">
+                      {playlist.songs.map((song, idx) => (
+                        <div key={song.id} className="flex items-center gap-3 p-3 bg-gray-950/50 rounded-xl">
+                          <span className="w-6 text-center text-gray-600 text-sm font-bold flex-shrink-0">{idx + 1}</span>
+                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-900 to-pink-900">{song.coverUrl && <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />}</div>
+                          <div className="flex-1 min-w-0"><p className="text-white text-sm font-medium truncate">{song.title}</p><p className="text-gray-500 text-xs">{song.artist}</p></div>
+                          {song.genre && <span className="text-xs text-purple-400 flex-shrink-0">{song.genre}</span>}
+                          <span className="text-gray-400 text-sm font-semibold flex-shrink-0">{song.votes.toLocaleString()} &#9650;</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 text-center"><Link href={'/venues/' + playlist.venueId} className="inline-block px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-sm font-semibold text-white hover:from-purple-500 hover:to-pink-500 transition-all">Ir al local y votar &#8594;</Link></div>
+                  </div>
+                )}
+                {expanded === playlist.id && (!playlist.songs || playlist.songs.length === 0) && (
+                  <div className="border-t border-white/5 px-5 py-8 text-center text-gray-500">
+                    <p>No hay canciones todav&#237;a</p>
+                    {playlist.venueId && (<Link href={'/venues/' + playlist.venueId} className="mt-3 inline-block text-purple-400 text-sm hover:text-purple-300">Visita el local &#8594;</Link>)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="mt-16 rounded-2xl bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/20 p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div><p className="text-xl font-bold mb-1">&#127900; &#191;Quieres tu propia playlist?</p><p className="text-gray-400 text-sm">Registra tu local y empieza a recibir votos.</p></div>
+          <Link href="/pricing" className="flex-shrink-0 px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-white hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/30">Empezar gratis &#8594;</Link>
+        </div>
+      </div>
+    </div>
   );
 }
