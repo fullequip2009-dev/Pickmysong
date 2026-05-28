@@ -1,110 +1,261 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const SONGS = [
-  { id: '1', title: 'MONTAGEM CYBERPUNK', artist: 'DJ KL Jay', genre: 'Funk / Electronic', votes: 2847, trend: '+12%', bpm: 138, cover: '\uD83C\uDFB5', color: 'from-purple-600 to-pink-600' },
-  { id: '2', title: 'RAVE DE FAVELA', artist: 'MC Lan & Diplo', genre: 'Funk / Rave', votes: 2341, trend: '+8%', bpm: 150, cover: '\uD83D\uDD25', color: 'from-orange-600 to-red-600' },
-  { id: '3', title: 'NEON NIGHTS', artist: 'Future Classic', genre: 'R&B / Neo-soul', votes: 1987, trend: '+5%', bpm: 94, cover: '\uD83C\uDF19', color: 'from-blue-600 to-cyan-500' },
-  { id: '4', title: 'ASPHALT GOLD', artist: 'Skepta feat. Young Thug', genre: 'Grime / Trap', votes: 1654, trend: '+3%', bpm: 140, cover: '\uD83D\uDC51', color: 'from-yellow-500 to-amber-600' },
-  { id: '5', title: 'MADRUGADA', artist: 'Cleo & Biel', genre: 'Brazilian Pop', votes: 1432, trend: '+2%', bpm: 110, cover: '\uD83C\uDF03', color: 'from-indigo-600 to-purple-500' },
-  { id: '6', title: 'SILK ROAD', artist: 'Kaytranada', genre: 'Electronic / House', votes: 1201, trend: '+1%', bpm: 122, cover: '\uD83C\uDFB6', color: 'from-emerald-600 to-teal-500' },
-];
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  genre?: string;
+  votes: number;
+  coverUrl?: string;
+  bpm?: number;
+  venueId?: string;
+  venueName?: string;
+}
 
-const GENRES = ['Todos', 'Funk', 'Trap', 'R&B', 'Electronic', 'Pop', 'Grime'];
+interface Venue {
+  id: string;
+  name: string;
+  isOpen?: boolean;
+  activeUsers?: number;
+  genre?: string;
+  coverImage?: string;
+  type?: string;
+}
+
+interface Artist {
+  id: string;
+  name: string;
+  genre?: string;
+  followers?: number;
+  imageUrl?: string;
+  verified?: boolean;
+}
+
+const GENRES = ['Todos', 'Jazz', 'Electronic', 'Pop', 'Rock', 'Indie', 'Funk', 'House'];
+
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) return <span className="text-2xl">&#128081;</span>;
+  if (rank === 2) return <span className="text-xl text-gray-300">&#129352;</span>;
+  if (rank === 3) return <span className="text-xl text-amber-600">&#129353;</span>;
+  return <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-800 text-gray-400 text-sm font-bold">{rank}</span>;
+}
 
 export default function DiscoverPage() {
-  const [votes, setVotes] = useState(new Set());
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeGenre, setActiveGenre] = useState('Todos');
   const [search, setSearch] = useState('');
-  const [songs, setSongs] = useState(SONGS);
+  const [voted, setVoted] = useState<Set<string>>(new Set());
+  const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<'songs' | 'venues' | 'artists'>('songs');
 
-  const handleVote = (id) => {
-    const hasVote = votes.has(id);
-    setVotes((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) { next.delete(id); } else { next.add(id); }
-      return next;
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/songs').then(r => r.json()).catch(() => []),
+      fetch('/api/venues').then(r => r.json()).catch(() => []),
+      fetch('/api/artists').then(r => r.json()).catch(() => [])
+    ]).then(([s, v, a]) => {
+      setSongs(Array.isArray(s) ? s : (s.songs || []));
+      setVenues(Array.isArray(v) ? v : (v.venues || []));
+      setArtists(Array.isArray(a) ? a : (a.artists || []));
+      setLoading(false);
     });
-    setSongs((prev) =>
-      prev.map((s) => s.id === id ? { ...s, votes: hasVote ? s.votes - 1 : s.votes + 1 } : s)
-    );
+  }, []);
+
+  const handleVote = (songId: string) => {
+    if (voted.has(songId)) return;
+    setVoted(prev => new Set([...prev, songId]));
+    setVoteCounts(prev => ({ ...prev, [songId]: (prev[songId] || 0) + 1 }));
   };
 
-  const filtered = songs
-    .filter((s) => (activeGenre === 'Todos' || s.genre.includes(activeGenre)) && (s.title.toLowerCase().includes(search.toLowerCase()) || s.artist.toLowerCase().includes(search.toLowerCase())))
-    .sort((a, b) => b.votes - a.votes);
+  const filteredSongs = songs
+    .filter(s => {
+      if (activeGenre !== 'Todos' && s.genre !== activeGenre) return false;
+      if (search && !s.title.toLowerCase().includes(search.toLowerCase()) && !s.artist.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => ((b.votes + (voteCounts[b.id] || 0)) - (a.votes + (voteCounts[a.id] || 0))))
+    .slice(0, 20);
+
+  const openVenues = venues.filter(v => v.isOpen);
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl">\uD83C\uDFB5</span>
-            <span className="font-black tracking-tighter text-white">Pick<span className="text-purple-400">my</span>song</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-gray-500 sm:block">{votes.size} votos emitidos</span>
-            <button className="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition-colors">Iniciar sesi\u00f3n</button>
+    <div className="min-h-screen bg-black text-white">
+      {/* Hero */}
+      <div className="relative overflow-hidden bg-gradient-to-b from-purple-950/40 to-black pt-24 pb-10">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-0 right-1/4 w-64 h-64 bg-pink-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 text-center">
+          <h1 className="text-4xl md:text-6xl font-black mb-3">
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Descubre</span>{' '}
+            lo que suena
+          </h1>
+          <p className="text-gray-400 text-lg mb-6">Canciones en tiempo real, locales activos y artistas trending</p>
+          <div className="relative max-w-md mx-auto">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">&#128269;</span>
+            <input
+              type="text"
+              placeholder="Buscar canci&#243;n, artista..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 bg-gray-900/80 border border-white/10 rounded-2xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+            />
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8">
-          <h1 className="mb-1 text-3xl font-black tracking-tighter text-white md:text-4xl">Descubre</h1>
-          <p className="text-gray-400">Las canciones que est\u00e1n definiendo el momento. Vota las tuyas.</p>
+      {/* Live venues horizontal scroll */}
+      {openVenues.length > 0 && (
+        <div className="border-y border-white/5 bg-gray-950/50 py-4">
+          <div className="max-w-5xl mx-auto px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+              <span className="text-green-400 text-xs font-semibold uppercase tracking-wide">Locales abiertos ahora</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {openVenues.map(v => (
+                <Link key={v.id} href={'/venues/' + v.id} className="flex-shrink-0 flex items-center gap-2.5 bg-gray-900/80 border border-white/10 hover:border-purple-500/50 rounded-xl px-3 py-2 transition-all group">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+                    {v.coverImage ? (
+                      <img src={v.coverImage} alt={v.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-800 to-pink-800 flex items-center justify-center text-xs">&#127925;</div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-white text-xs font-semibold group-hover:text-purple-300 transition-colors whitespace-nowrap">{v.name}</p>
+                    <p className="text-green-400 text-xs">{v.activeUsers} online</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
+      )}
 
-        <div className="mb-6 flex gap-3">
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar canci\u00f3n o artista..." className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-gray-600 outline-none transition-all focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50" />
-        </div>
-
-        <div className="mb-8 flex flex-wrap gap-2">
-          {GENRES.map((genre) => (
-            <button key={genre} onClick={() => setActiveGenre(genre)} className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${activeGenre === genre ? 'bg-purple-600 text-white' : 'border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}>{genre}</button>
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-gray-900/60 border border-white/10 rounded-xl p-1 w-fit">
+          {(['songs', 'venues', 'artists'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={activeTab === tab ? 'px-5 py-2 rounded-lg text-sm font-semibold bg-purple-600 text-white transition-all' : 'px-5 py-2 rounded-lg text-sm font-semibold text-gray-400 hover:text-white transition-all'}
+            >
+              {tab === 'songs' ? '&#127925; Canciones' : tab === 'venues' ? '&#127979; Locales' : '&#127900; Artistas'}
+            </button>
           ))}
         </div>
 
-        <div className="mb-4 flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-          </span>
-          <span className="text-xs text-gray-500">En vivo \u2014 {filtered.length} canciones</span>
-        </div>
+        {/* Genre filter - only for songs */}
+        {activeTab === 'songs' && (
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
+            {GENRES.map(g => (
+              <button
+                key={g}
+                onClick={() => setActiveGenre(g)}
+                className={activeGenre === g ? 'flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium bg-gray-900/80 border border-white/10 text-gray-400 hover:border-purple-500/50 hover:text-purple-300'}
+              >{g}</button>
+            ))}
+          </div>
+        )}
 
-        <div className="flex flex-col gap-3">
-          {filtered.length === 0 ? (
-            <div className="py-16 text-center text-gray-600">No se encontraron canciones</div>
-          ) : (
-            filtered.map((song, i) => (
-              <div key={song.id} className="group relative flex items-center gap-4 rounded-2xl border border-white/5 bg-white/3 p-4 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:bg-white/5">
-                <span className="w-6 shrink-0 text-center text-sm font-bold text-gray-600">{i + 1}</span>
-                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-2xl ${song.color}`}>{song.cover}</div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-white">{song.title}</p>
-                  <p className="truncate text-sm text-gray-400">{song.artist}</p>
-                  <span className="mt-1 inline-block rounded-full border border-white/10 px-2 py-0.5 text-xs text-gray-500">{song.genre}</span>
-                </div>
-                <div className="hidden shrink-0 text-center sm:block">
-                  <p className="text-xs text-gray-600">BPM</p>
-                  <p className="text-sm font-semibold text-gray-400">{song.bpm}</p>
-                </div>
-                <div className="hidden shrink-0 text-center md:block">
-                  <p className="text-xs text-gray-600">Trend</p>
-                  <p className="text-sm font-semibold text-green-400">{song.trend}</p>
-                </div>
-                <button onClick={() => handleVote(song.id)} className={`shrink-0 flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-sm font-bold transition-all duration-200 ${votes.has(song.id) ? 'bg-purple-600/30 text-purple-300 border border-purple-500/50' : 'border border-white/10 bg-white/5 text-white hover:border-purple-500/50 hover:bg-purple-600/20 hover:text-purple-300'}`}>
-                  <span className="text-lg leading-none">{votes.has(song.id) ? '\uD83D\uDC9C' : '\uD83E\uDD0D'}</span>
-                  <span>{song.votes.toLocaleString()}</span>
-                </button>
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 bg-gray-900/40 rounded-xl animate-pulse">
+                <div className="w-7 h-7 bg-gray-800 rounded-full" />
+                <div className="w-12 h-12 bg-gray-800 rounded-lg" />
+                <div className="flex-1 space-y-2"><div className="h-4 bg-gray-800 rounded w-2/3" /><div className="h-3 bg-gray-800 rounded w-1/3" /></div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : activeTab === 'songs' ? (
+          <div className="space-y-2">
+            {filteredSongs.length === 0 ? (
+              <div className="text-center py-20 text-gray-500">No hay canciones que coincidan</div>
+            ) : filteredSongs.map((song, idx) => {
+              const currentVotes = song.votes + (voteCounts[song.id] || 0);
+              const hasVoted = voted.has(song.id);
+              return (
+                <div key={song.id} className={`flex items-center gap-4 p-4 rounded-xl border transition-all group ${idx === 0 ? 'bg-gradient-to-r from-purple-900/30 to-pink-900/20 border-purple-500/30' : 'bg-gray-900/40 border-white/5 hover:border-white/15 hover:bg-gray-900/60'}`}>
+                  <div className="w-7 flex items-center justify-center flex-shrink-0">
+                    <RankBadge rank={idx + 1} />
+                  </div>
+                  <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-800 to-pink-800">
+                    {song.coverUrl && <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-semibold truncate">{song.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-400 text-sm">{song.artist}</span>
+                      {song.genre && <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{song.genre}</span>}
+                      {song.venueName && <span className="text-xs text-gray-600">@ {song.venueName}</span>}
+                    </div>
+                  </div>
+                  {song.bpm && <span className="hidden md:block text-xs text-gray-600 flex-shrink-0">{song.bpm} BPM</span>}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-gray-300 font-bold text-sm">{currentVotes.toLocaleString()}</span>
+                    <button
+                      onClick={() => handleVote(song.id)}
+                      disabled={hasVoted}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${hasVoted ? 'bg-purple-600/30 text-purple-400 cursor-default' : 'bg-purple-600 hover:bg-purple-500 text-white active:scale-95'}`}
+                    >
+                      {hasVoted ? '&#10003;' : '&#9650;'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : activeTab === 'venues' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {venues.map(v => (
+              <Link key={v.id} href={'/venues/' + v.id} className="group flex items-center gap-4 p-4 bg-gray-900/40 border border-white/5 hover:border-purple-500/40 rounded-xl transition-all">
+                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                  {v.coverImage ? (
+                    <img src={v.coverImage} alt={v.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center text-2xl">&#127925;</div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold group-hover:text-purple-300 transition-colors">{v.name}</p>
+                  <p className="text-gray-500 text-sm">{v.type}</p>
+                  {v.genre && <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{v.genre}</span>}
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span className={v.isOpen ? 'text-xs font-semibold text-green-400' : 'text-xs font-semibold text-gray-600'}>{v.isOpen ? '● ABIERTO' : '● CERRADO'}</span>
+                  {v.isOpen && <span className="text-xs text-gray-500">{v.activeUsers} online</span>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {artists.map(a => (
+              <div key={a.id} className="group bg-gray-900/40 border border-white/5 hover:border-purple-500/40 rounded-xl p-4 text-center transition-all">
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-gradient-to-br from-purple-800 to-pink-800">
+                  {a.imageUrl && <img src={a.imageUrl} alt={a.name} className="w-full h-full object-cover" />}
+                </div>
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <p className="text-white font-semibold text-sm">{a.name}</p>
+                  {a.verified && <span className="text-blue-400 text-xs">&#10003;</span>}
+                </div>
+                {a.genre && <p className="text-purple-400 text-xs mb-2">{a.genre}</p>}
+                {a.followers && <p className="text-gray-500 text-xs">{(a.followers / 1000).toFixed(0)}K seguidores</p>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
