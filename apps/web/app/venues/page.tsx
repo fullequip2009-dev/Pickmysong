@@ -1,142 +1,187 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const VENUES = [
-  { id: '1', name: 'Club Nocturno BRLND', type: 'Club', city: 'Barcelona', address: 'Carrer de la Marina, 19', vibe: 'Dark Techno / Industrial', currentSong: 'MONTAGEM CYBERPUNK', currentArtist: 'DJ KL Jay', visitors: 340, capacity: 500, rating: 4.8, tags: ['Techno', 'Dark', 'Industrial'], avatar: '\uD83C\uDF0C', color: 'from-purple-900 to-black', open: true },
-  { id: '2', name: 'Terraza del Sol', type: 'Bar', city: 'Madrid', address: 'Gran V\u00eda, 45', vibe: 'R&B / Neo-soul', currentSong: 'NEON NIGHTS', currentArtist: 'Future Classic', visitors: 120, capacity: 200, rating: 4.5, tags: ['R&B', 'Chill', 'Rooftop'], avatar: '\u2600\uFE0F', color: 'from-orange-900 to-amber-900', open: true },
-  { id: '3', name: "Raver's Paradise", type: 'Rave', city: 'Berlin', address: 'Revaler Str. 99', vibe: 'Rave / Hardcore', currentSong: 'RAVE DE FAVELA', currentArtist: 'MC Lan', visitors: 800, capacity: 1200, rating: 4.9, tags: ['Rave', 'Hardcore', 'Underground'], avatar: '\uD83D\uDD25', color: 'from-red-900 to-orange-900', open: true },
-  { id: '4', name: 'Gold Lounge', type: 'Lounge', city: 'Miami', address: 'Ocean Drive, 1201', vibe: 'Hip-hop / Trap', currentSong: 'ASPHALT GOLD', currentArtist: 'Skepta', visitors: 90, capacity: 150, rating: 4.3, tags: ['Hip-hop', 'VIP', 'Premium'], avatar: '\uD83D\uDC8E', color: 'from-yellow-900 to-amber-800', open: false },
-  { id: '5', name: 'Casa do Funk', type: 'Club', city: 'S\u00e3o Paulo', address: 'Av. Paulista, 900', vibe: 'Funk / Electronic', currentSong: 'FUNK DO FUTURO', currentArtist: 'MC Lan', visitors: 650, capacity: 800, rating: 4.7, tags: ['Funk', 'Carioca', 'Electronic'], avatar: '\uD83C\uDF03', color: 'from-green-900 to-emerald-900', open: true },
-  { id: '6', name: 'Silk Garden', type: 'Rooftop', city: 'Londres', address: 'Shoreditch High St, 7', vibe: 'House / Electronic', currentSong: 'SILK ROAD', currentArtist: 'Kaytranada', visitors: 200, capacity: 250, rating: 4.6, tags: ['House', 'Rooftop', 'Sunset'], avatar: '\uD83C\uDF3F', color: 'from-teal-900 to-cyan-900', open: true },
-];
+interface Venue {
+  id: string;
+  name: string;
+  type: string;
+  city: string;
+  address: string;
+  coverImage?: string;
+  isOpen?: boolean;
+  activeUsers?: number;
+  capacity?: number;
+  rating?: number;
+  genre?: string;
+  description?: string;
+}
 
-const TYPES = ['Todos', 'Club', 'Bar', 'Rave', 'Lounge', 'Rooftop'];
+const GENRE_FILTERS = ['Todos', 'Jazz', 'Electronic', 'Pop', 'Rock', 'Indie', 'Funk', 'House'];
 
-function OccupancyBar({ current, capacity }) {
-  const pct = Math.round((current / capacity) * 100);
-  const color = pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-yellow-500' : 'bg-green-500';
+function VenueCard({ venue }: { venue: Venue }) {
+  const pct = venue.capacity ? Math.round(((venue.activeUsers || 0) / venue.capacity) * 100) : 0;
+  const occupancyColor = pct > 75 ? 'bg-red-500' : pct > 40 ? 'bg-yellow-500' : 'bg-green-500';
+
   return (
-    <div className="mt-2">
-      <div className="flex justify-between text-xs text-gray-500 mb-1">
-        <span>Aforo</span><span>{current}/{capacity} ({pct}%)</span>
+    <Link href={'/venues/' + venue.id} className="group block">
+      <div className="relative bg-gray-900/60 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden hover:border-purple-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/20 hover:-translate-y-1">
+        <div className="relative h-52 overflow-hidden">
+          {venue.coverImage ? (
+            <img src={venue.coverImage} alt={venue.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center"><span className="text-5xl">&#127925;</span></div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent" />
+          <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
+            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-black/60 backdrop-blur-sm text-gray-300 border border-white/20">{venue.type}</span>
+            <span className={venue.isOpen ? 'px-2 py-1 rounded-full text-xs font-bold backdrop-blur-sm bg-green-500/80 text-white' : 'px-2 py-1 rounded-full text-xs font-bold backdrop-blur-sm bg-red-500/80 text-white'}>
+              {venue.isOpen ? '● ABIERTO' : '● CERRADO'}
+            </span>
+          </div>
+          {venue.isOpen && (
+            <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm rounded-full px-2.5 py-1">
+              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+              <span className="text-xs text-green-300 font-medium">{venue.activeUsers} online</span>
+            </div>
+          )}
+        </div>
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="text-white font-bold text-lg leading-tight group-hover:text-purple-300 transition-colors">{venue.name}</h3>
+            {venue.rating && (
+              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                <span className="text-yellow-400 text-sm">&#9733;</span>
+                <span className="text-gray-300 text-sm font-medium">{venue.rating}</span>
+              </div>
+            )}
+          </div>
+          <p className="text-gray-500 text-sm mb-1">&#128205; {venue.address}, {venue.city}</p>
+          {venue.genre && (
+            <span className="inline-block mt-1 mb-3 px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-xs text-purple-300">{venue.genre}</span>
+          )}
+          {venue.description && (
+            <p className="text-gray-400 text-sm line-clamp-2 mb-3">{venue.description}</p>
+          )}
+          {venue.isOpen && venue.capacity && (
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Ocupaci&#243;n</span><span>{pct}%</span></div>
+              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className={'h-full rounded-full transition-all ' + occupancyColor} style={{ width: pct + '%' }} />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">{venue.isOpen ? 'Votaciones activas' : 'Pr&#243;ximamente'}</span>
+            <span className="text-xs font-semibold text-purple-400 group-hover:text-purple-300">Entrar &#8594;</span>
+          </div>
+        </div>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-white/10">
-        <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
+    </Link>
   );
 }
 
 export default function VenuesPage() {
-  const [activeType, setActiveType] = useState('Todos');
-  const [showOpen, setShowOpen] = useState(false);
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeGenre, setActiveGenre] = useState('Todos');
   const [search, setSearch] = useState('');
+  const [showOpenOnly, setShowOpenOnly] = useState(false);
 
-  const filtered = VENUES.filter(
-    (v) =>
-      (activeType === 'Todos' || v.type === activeType) &&
-      (!showOpen || v.open) &&
-      (v.name.toLowerCase().includes(search.toLowerCase()) || v.city.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => {
+    fetch('/api/venues')
+      .then(r => r.json())
+      .then(data => {
+        setVenues(Array.isArray(data) ? data : (data.venues || []));
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filtered = venues.filter(v => {
+    if (showOpenOnly && !v.isOpen) return false;
+    if (activeGenre !== 'Todos' && v.genre !== activeGenre) return false;
+    if (search && !v.name.toLowerCase().includes(search.toLowerCase()) && !v.city.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const openCount = venues.filter(v => v.isOpen).length;
 
   return (
-    <main className="min-h-screen bg-black text-white pb-20 md:pb-0">
-      <header className="sticky top-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl">\uD83C\uDFB5</span>
-            <span className="font-black tracking-tighter text-white">Pick<span className="text-purple-400">my</span>song</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-1 text-sm">
-            {[['/', 'Inicio'], ['/discover', 'Descubrir'], ['/playlists', 'Playlists'], ['/artists', 'Artistas'], ['/venues', 'Locales']].map(([href, label]) => (
-              <Link key={href} href={href} className="px-3 py-1.5 rounded-full text-gray-400 hover:text-white hover:bg-white/5 transition-all">{label}</Link>
-            ))}
-          </nav>
-          <button className="rounded-full bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 transition-colors">Iniciar sesi\u00f3n</button>
+    <div className="min-h-screen bg-black text-white">
+      <div className="relative overflow-hidden bg-gradient-to-b from-purple-950/40 to-black pt-24 pb-12">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 -left-20 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -top-10 right-10 w-60 h-60 bg-pink-600/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
-      </header>
-
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tighter text-white md:text-4xl">Locales</h1>
-            <p className="mt-1 text-gray-400">Descubre d\u00f3nde suena la m\u00fasica que importa.</p>
+        <div className="relative max-w-7xl mx-auto px-4">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-green-400 text-sm font-medium">{openCount} locales abiertos ahora</span>
           </div>
-          <button className="rounded-full border border-purple-500/50 bg-purple-600/20 px-4 py-2 text-sm font-semibold text-purple-300 hover:bg-purple-600/30 transition-all">+ Registrar local</button>
+          <h1 className="text-4xl md:text-5xl font-black mb-3">
+            Descubre{' '}
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">locales</span>
+          </h1>
+          <p className="text-gray-400 text-lg max-w-xl">Entra, vota tus canciones favoritas y vive la experiencia musical en directo.</p>
         </div>
+      </div>
 
-        <div className="mb-6 flex gap-3">
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar local o ciudad..." className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-gray-600 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/50 transition-all" />
-          <button onClick={() => setShowOpen(!showOpen)} className={`rounded-xl px-4 py-3 text-sm font-medium border transition-all ${showOpen ? 'border-green-500/50 bg-green-600/20 text-green-300' : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'}`}>
-            {showOpen ? '\uD83D\uDFE2 Abiertos' : 'Todos'}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">&#128269;</span>
+            <input type="text" placeholder="Buscar local o ciudad..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-3 bg-gray-900/80 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors" />
+          </div>
+          <button onClick={() => setShowOpenOnly(!showOpenOnly)} className={showOpenOnly ? 'flex items-center gap-2 px-4 py-3 rounded-xl border font-medium text-sm transition-all bg-green-500/20 border-green-500/50 text-green-300' : 'flex items-center gap-2 px-4 py-3 rounded-xl border font-medium text-sm transition-all bg-gray-900/80 border-white/10 text-gray-400 hover:border-white/30'}>
+            <span className={showOpenOnly ? 'w-2 h-2 rounded-full bg-green-400 animate-pulse' : 'w-2 h-2 rounded-full bg-gray-600'} />
+            Solo abiertos
           </button>
         </div>
 
-        <div className="mb-8 flex flex-wrap gap-2">
-          {TYPES.map((t) => (
-            <button key={t} onClick={() => setActiveType(t)} className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${activeType === t ? 'bg-purple-600 text-white' : 'border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}>{t}</button>
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-8 scrollbar-hide">
+          {GENRE_FILTERS.map(g => (
+            <button key={g} onClick={() => setActiveGenre(g)} className={activeGenre === g ? 'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all bg-purple-600 text-white shadow-lg shadow-purple-500/30' : 'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all bg-gray-900/80 border border-white/10 text-gray-400 hover:border-purple-500/50 hover:text-purple-300'}>{g}</button>
           ))}
         </div>
 
-        <div className="mb-4 flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-          </span>
-          <span className="text-xs text-gray-500">{filtered.filter((v) => v.open).length} locales abiertos ahora</span>
+        <div className="flex items-center justify-between mb-6">
+          <p className="text-gray-500 text-sm">{loading ? 'Cargando...' : filtered.length + ' locales encontrados'}</p>
+          <Link href="/search" className="text-purple-400 text-sm hover:text-purple-300 transition-colors">B&#250;squeda avanzada &#8594;</Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {filtered.map((venue) => (
-            <div key={venue.id} className="group overflow-hidden rounded-2xl border border-white/5 bg-white/3 backdrop-blur-sm transition-all duration-300 hover:border-white/10 hover:scale-[1.01]">
-              <div className={`relative flex h-24 items-end bg-gradient-to-br p-4 ${venue.color}`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-4xl">{venue.avatar}</span>
-                  <div>
-                    <h3 className="font-bold text-white">{venue.name}</h3>
-                    <p className="text-xs text-white/60">{venue.type} \u2022 {venue.city}</p>
-                  </div>
-                </div>
-                <div className="absolute right-3 top-3">
-                  {venue.open ? (
-                    <span className="rounded-full bg-green-500/20 border border-green-500/40 px-2 py-0.5 text-xs text-green-300">Abierto</span>
-                  ) : (
-                    <span className="rounded-full bg-red-500/20 border border-red-500/40 px-2 py-0.5 text-xs text-red-300">Cerrado</span>
-                  )}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-gray-900/60 rounded-2xl overflow-hidden animate-pulse">
+                <div className="h-52 bg-gray-800" />
+                <div className="p-4 space-y-3">
+                  <div className="h-5 bg-gray-800 rounded w-3/4" />
+                  <div className="h-4 bg-gray-800 rounded w-1/2" />
+                  <div className="h-3 bg-gray-800 rounded w-full" />
                 </div>
               </div>
-              <div className="p-4">
-                {venue.open && (
-                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-purple-500/20 bg-purple-600/10 px-3 py-2">
-                    <span className="animate-pulse text-purple-400">\u25B6</span>
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-semibold text-white">{venue.currentSong}</p>
-                      <p className="truncate text-xs text-gray-500">{venue.currentArtist}</p>
-                    </div>
-                  </div>
-                )}
-                <p className="mb-2 text-xs text-gray-400">{venue.address}</p>
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {venue.tags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-white/10 px-2 py-0.5 text-xs text-gray-500">{tag}</span>
-                  ))}
-                </div>
-                <OccupancyBar current={venue.visitors} capacity={venue.capacity} />
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-yellow-400 text-xs">
-                    {'\u2605'.repeat(Math.floor(venue.rating))}
-                    <span className="text-gray-400 ml-1">{venue.rating}</span>
-                  </div>
-                  <button className="rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-medium text-white hover:bg-white/10 transition-all">Ver playlist \u2192</button>
-                </div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-24">
+            <p className="text-6xl mb-4">&#127925;</p>
+            <p className="text-gray-400 text-lg mb-2">No hay locales que coincidan</p>
+            <p className="text-gray-600 text-sm">Prueba cambiando los filtros</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map(v => <VenueCard key={v.id} venue={v} />)}
+          </div>
+        )}
+
+        <div className="mt-16 rounded-2xl bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-purple-500/20 p-8 text-center">
+          <p className="text-2xl font-bold mb-2">&#127908; &#191;Tienes un local?</p>
+          <p className="text-gray-400 mb-6">&#218;nete a Pickmysong y deja que tu p&#250;blico elija la m&#250;sica.</p>
+          <Link href="/pricing" className="inline-block px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-white hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/30">Ver planes &#8594;</Link>
         </div>
-        {filtered.length === 0 && <div className="py-20 text-center text-gray-600">No se encontraron locales</div>}
       </div>
-    </main>
+    </div>
   );
 }
