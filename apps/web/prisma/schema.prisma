@@ -1,0 +1,246 @@
+// Pickmysong - Prisma Schema
+// Run: npx prisma generate && npx prisma db push
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole { user venue_owner admin }
+enum UserPlan { free basic pro enterprise }
+enum VenueStatus { active inactive pending }
+enum BrandTier { partner premium sponsor }
+enum NotificationType { vote checkin achievement system promo }
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(user)
+  plan          UserPlan  @default(free)
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  venues        Venue[]
+  votes         Vote[]
+  checkIns      CheckIn[]
+  notifications Notification[]
+  achievements  UserAchievement[]
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Venue {
+  id           String      @id @default(cuid())
+  name         String
+  type         String
+  city         String
+  address      String
+  description  String?     @db.Text
+  genre        String?
+  coverImage   String?
+  latitude     Float?
+  longitude    Float?
+  capacity     Int         @default(100)
+  activeUsers  Int         @default(0)
+  rating       Float?
+  isOpen       Boolean     @default(false)
+  status       VenueStatus @default(active)
+  qrCode       String?
+  ownerId      String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  owner        User        @relation(fields: [ownerId], references: [id])
+  songs        Song[]
+  playlists    Playlist[]
+  checkIns     CheckIn[]
+  votes        Vote[]
+  @@map("venues")
+}
+
+model Song {
+  id            String   @id @default(cuid())
+  title         String
+  artist        String
+  artistId      String?
+  genre         String?
+  bpm           Int?
+  duration      Int?
+  coverUrl      String?
+  spotifyId     String?
+  previewUrl    String?
+  votes         Int      @default(0)
+  plays         Int      @default(0)
+  venueId       String?
+  venueName     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  venue         Venue?          @relation(fields: [venueId], references: [id])
+  artistRef     Artist?         @relation(fields: [artistId], references: [id])
+  voteRecords   Vote[]
+  playlistSongs PlaylistSong[]
+  @@map("songs")
+}
+
+model Artist {
+  id        String   @id @default(cuid())
+  name      String
+  genre     String?
+  bio       String?  @db.Text
+  followers Int      @default(0)
+  imageUrl  String?
+  spotifyId String?
+  verified  Boolean  @default(false)
+  trending  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  songs     Song[]
+  @@map("artists")
+}
+
+model Playlist {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  coverUrl    String?
+  genre       String?
+  isActive    Boolean  @default(true)
+  totalVotes  Int      @default(0)
+  songCount   Int      @default(0)
+  venueId     String
+  venueName   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  venue       Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  songs       PlaylistSong[]
+  @@map("playlists")
+}
+
+model PlaylistSong {
+  id         String   @id @default(cuid())
+  playlistId String
+  songId     String
+  position   Int      @default(0)
+  addedAt    DateTime @default(now())
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  @@unique([playlistId, songId])
+  @@map("playlist_songs")
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  userId    String
+  songId    String
+  venueId   String
+  createdAt DateTime @default(now())
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song  Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  @@unique([userId, songId, venueId])
+  @@map("votes")
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  userId    String
+  venueId   String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  venue Venue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  @@unique([userId, venueId])
+  @@map("check_ins")
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String
+  description String?   @db.Text
+  logoUrl     String?
+  website     String?
+  tier        BrandTier @default(partner)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  @@map("brands")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(system)
+  title     String
+  message   String           @db.Text
+  read      Boolean          @default(false)
+  link      String?
+  createdAt DateTime         @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("notifications")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  icon        String
+  xpReward    Int      @default(50)
+  createdAt   DateTime @default(now())
+  users       UserAchievement[]
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
