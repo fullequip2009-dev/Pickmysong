@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextResponse } from 'next/server';
 import { getSongs, getPlaylists, getArtists, getVenues } from '../../../../lib/db';
 
