@@ -3,9 +3,9 @@ import { createServerSupabaseClient } from '@/lib/supabase';
 
 // Demo users for fallback when Supabase is not configured
 const DEMO_USERS = [
-  { id: 'demo-admin', email: 'admin@pickmysong.com', password: 'admin123', name: 'Admin Demo', handle: '@admin', avatar: '🎵', plan: 'enterprise', role: 'admin' },
-  { id: 'demo-venue', email: 'venue@demo.com', password: 'venue123', name: 'Venue Demo', handle: '@venue', avatar: '🎸', plan: 'pro', role: 'venue_owner' },
-  { id: 'demo-user', email: 'user@demo.com', password: 'user123', name: 'User Demo', handle: '@urbanlistener', avatar: '🎧', plan: 'free', role: 'user' },
+  { id: 'demo-admin', email: 'admin@pickmysong.com', password: 'admin123', name: 'Admin Demo', handle: 'admin', avatar: '🎵', plan: 'premium', role: 'admin' },
+  { id: 'demo-venue', email: 'venue@demo.com', password: 'venue123', name: 'Venue Demo', handle: 'venue', avatar: '🎸', plan: 'venue', role: 'venue' },
+  { id: 'demo-user', email: 'user@demo.com', password: 'user123', name: 'User Demo', handle: 'user', avatar: '🎤', plan: 'free', role: 'user' },
 ];
 
 export async function POST(request: Request) {
@@ -19,64 +19,49 @@ export async function POST(request: Request) {
       );
     }
 
-    // Try Supabase Auth
+    // Try Supabase Auth first
     try {
-      const supabase = await createServerSupabaseClient();
+      const supabase = createServerSupabaseClient();
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
-          return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 });
-        }
-        if (error.message.includes('Email not confirmed')) {
-          return NextResponse.json({ error: 'Por favor confirma tu email antes de iniciar sesión' }, { status: 401 });
-        }
-        throw error;
-      }
-
-      if (data.user && data.session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
+      if (!error && data.user) {
+        // Get user profile
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
+        const profileData = profile as Record<string, unknown> | null;
 
         return NextResponse.json({
           user: {
             id: data.user.id,
-            email: data.user.email,
-            name: profile?.name || data.user.email?.split('@')[0],
-            handle: profile?.handle || '@user',
-            avatar: profile?.avatar || '🎵',
-            plan: profile?.plan || 'free',
+            email: data.user.email || '',
+            name: (profileData?.name as string) || (data.user.email ? data.user.email.split('@')[0] : 'User'),
+            handle: (profileData?.handle as string) || '@user',
+            avatar: (profileData?.avatar as string) || '🎵',
+            plan: (profileData?.plan as string) || 'free',
+            role: (profileData?.role as string) || 'user',
           },
-          token: data.session.access_token,
-          message: 'Login exitoso',
+          session: data.session,
         });
       }
-    } catch (supaErr) {
-      const errMsg = (supaErr as Error).message || '';
-      if (!errMsg.includes('fetch') && !errMsg.includes('URL') && !errMsg.includes('Invalid')) {
-        return NextResponse.json({ error: errMsg }, { status: 401 });
-      }
+    } catch {
+      // Supabase not configured, fall through to demo users
     }
 
     // Fallback: demo users
-    const demoUser = DEMO_USERS.find((u) => u.email === email && u.password === password);
+    const demoUser = DEMO_USERS.find(u => u.email === email && u.password === password);
     if (demoUser) {
-      const { password: _, ...safeUser } = demoUser;
+      const { password: _pw, ...safeUser } = demoUser;
       return NextResponse.json({
         user: safeUser,
-        token: 'mock-jwt-' + Date.now(),
-        message: 'Login exitoso (modo demo)',
+        session: { access_token: 'demo-token-' + demoUser.id },
       });
     }
 
     return NextResponse.json(
-      { error: 'Email o contraseña incorrectos' },
+      { error: 'Credenciales inválidas' },
       { status: 401 }
     );
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }
