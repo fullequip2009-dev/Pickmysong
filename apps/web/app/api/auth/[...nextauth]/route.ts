@@ -35,3 +35,53 @@ const authOptions: NextAuthOptions = {
           const isValid = await bcrypt.compare(
             credentials.password,
             dbUser.password_hash || ''
+          );
+          if (!isValid) return null;
+          return {
+            id: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name || dbUser.email,
+            image: dbUser.avatar,
+          };
+        } catch {
+          return null;
+        }
+      },
+    }),
+  ],
+  session: { strategy: 'jwt' },
+  pages: {
+    signIn: '/auth',
+    error: '/auth',
+  },
+  callbacks: {
+    async jwt({ token, user, trigger, session }: any) {
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
+      }
+      if (trigger === 'update' && session) {
+        token = { ...token, ...session };
+      }
+      return token;
+    },
+    async session({ session, token }: any) {
+      if (token) {
+        session.user = {
+          ...session.user,
+          id: token.id,
+          email: token.email,
+          name: token.name,
+          image: token.image,
+        };
+      }
+      return session;
+    },
+  },
+  secret: process.env.NEXTAUTH_SECRET || 'pickmysong-secret-key',
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
