@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase';
-import { users } from '@/lib/db';
 
-// Demo user for when Supabase is not configured
-const DEMO_USER = {
-  email: 'demo@pickmysong.com',
-  password: 'demo123',
-  id: 'demo-1',
-  name: 'Urban Listener',
-  handle: '@urbanlistener',
-  avatar: '🎧',
-  plan: 'free' as const,
-};
+// Demo users for fallback when Supabase is not configured
+const DEMO_USERS = [
+  { id: 'demo-admin', email: 'admin@pickmysong.com', password: 'admin123', name: 'Admin Demo', handle: '@admin', avatar: '🎵', plan: 'enterprise', role: 'admin' },
+  { id: 'demo-venue', email: 'venue@demo.com', password: 'venue123', name: 'Venue Demo', handle: '@venue', avatar: '🎸', plan: 'pro', role: 'venue_owner' },
+  { id: 'demo-user', email: 'user@demo.com', password: 'user123', name: 'User Demo', handle: '@urbanlistener', avatar: '🎧', plan: 'free', role: 'user' },
+];
 
 export async function POST(request: Request) {
   try {
@@ -40,7 +35,6 @@ export async function POST(request: Request) {
       }
 
       if (data.user && data.session) {
-        // Get profile from DB
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -53,7 +47,7 @@ export async function POST(request: Request) {
             email: data.user.email,
             name: profile?.name || data.user.email?.split('@')[0],
             handle: profile?.handle || '@user',
-            avatar: profile?.avatar || '🎧',
+            avatar: profile?.avatar || '🎵',
             plan: profile?.plan || 'free',
           },
           token: data.session.access_token,
@@ -62,14 +56,15 @@ export async function POST(request: Request) {
       }
     } catch (supaErr) {
       const errMsg = (supaErr as Error).message || '';
-      if (!errMsg.includes('fetch') && !errMsg.includes('URL') && !errMsg.includes('Invalid API')) {
+      if (!errMsg.includes('fetch') && !errMsg.includes('URL') && !errMsg.includes('Invalid')) {
         return NextResponse.json({ error: errMsg }, { status: 401 });
       }
     }
 
-    // Fallback: demo user + in-memory users
-    if (email === DEMO_USER.email && password === DEMO_USER.password) {
-      const { password: _, ...safeUser } = DEMO_USER;
+    // Fallback: demo users
+    const demoUser = DEMO_USERS.find((u) => u.email === email && u.password === password);
+    if (demoUser) {
+      const { password: _, ...safeUser } = demoUser;
       return NextResponse.json({
         user: safeUser,
         token: 'mock-jwt-' + Date.now(),
@@ -77,18 +72,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const user = users.find((u) => u.email === email);
-    if (!user) {
-      return NextResponse.json({ error: 'Email o contraseña incorrectos' }, { status: 401 });
-    }
-
-    return NextResponse.json({
-      user: { id: user.id, name: user.name, email: user.email, handle: user.handle, avatar: user.avatar, plan: user.plan },
-      token: 'mock-jwt-' + Date.now(),
-      message: 'Login exitoso (modo demo)',
-    });
-
-  } catch {
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Email o contraseña incorrectos' },
+      { status: 401 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    );
   }
 }
