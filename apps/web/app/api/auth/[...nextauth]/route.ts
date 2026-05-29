@@ -5,6 +5,9 @@ import GoogleProvider from 'next-auth/providers/google';
 import { createServerSupabaseClient } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyUser = any;
+
 const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
@@ -27,19 +30,19 @@ const authOptions: NextAuthOptions = {
             .eq('email', credentials.email)
             .single();
           if (!user) return null;
-          const dbUser = user as Record<string, unknown>;
+          const dbUser = user as AnyUser;
           const isValid = await bcrypt.compare(
             credentials.password,
-            (dbUser.password_hash as string) || ''
+            dbUser.password_hash || ''
           );
           if (!isValid) return null;
           return {
-            id: dbUser.id as string,
-            email: dbUser.email as string,
-            name: dbUser.name as string,
-            image: dbUser.avatar_url as string,
-            role: dbUser.role as string,
-            plan: dbUser.plan as string,
+            id: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            image: dbUser.avatar_url,
+            role: dbUser.role,
+            plan: dbUser.plan,
           };
         } catch {
           if (credentials.email === 'admin@pickmysong.com' && credentials.password === 'admin123') {
@@ -58,10 +61,11 @@ const authOptions: NextAuthOptions = {
   ],
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async jwt({ token, user, trigger, session }: any) {
       if (user) {
-        token.role = (user as Record<string, unknown>).role ?? 'user';
-        token.plan = (user as Record<string, unknown>).plan ?? 'free';
+        token.role = user.role ?? 'user';
+        token.plan = user.plan ?? 'free';
         token.userId = user.id;
       }
       if (trigger === 'update' && session) {
@@ -69,11 +73,12 @@ const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    async session({ session, token }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async session({ session, token }: any) {
       if (session.user) {
-        (session.user as Record<string, unknown>).id = token.userId as string;
-        (session.user as Record<string, unknown>).role = token.role as string;
-        (session.user as Record<string, unknown>).plan = token.plan as string;
+        session.user.id = token.userId;
+        session.user.role = token.role;
+        session.user.plan = token.plan;
       }
       return session;
     },
