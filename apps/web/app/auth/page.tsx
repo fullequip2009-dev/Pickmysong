@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { createClient } from '../../lib/supabase';
 
 type AuthMode = 'login' | 'register';
 
@@ -13,6 +14,16 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+    const handleOAuth = async (provider: 'google' | 'spotify') => {
+          setError('');
+          const supabase = createClient();
+          const { error } = await supabase.auth.signInWithOAuth({
+                  provider,
+                  options: { redirectTo: `${window.location.origin}/auth/callback` },
+          });
+          if (error) setError(error.message);
+    };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,8 +116,8 @@ export default function AuthPage() {
             <div className="relative flex justify-center text-xs text-gray-500"><span className="bg-transparent px-3">o continúa con</span></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-gray-300 text-sm font-medium transition-all"><span>🔍</span> Google</button>
-            <button className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-gray-300 text-sm font-medium transition-all"><span>🎵</span> Spotify</button>
+            <button onClick={() => handleOAuth('google')} className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-gray-300 text-sm font-medium transition-all"><span>🔍</span> Google</button>
+            <button onClick={() => handleOAuth('spotify')} className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-gray-300 text-sm font-medium transition-all"><span>🎵</span> Spotify</button>
           </div>
         </div>
         <p className="text-center text-gray-600 text-xs mt-6">
