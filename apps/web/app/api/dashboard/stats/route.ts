@@ -11,15 +11,15 @@ export async function GET() {
       const supabase = await createServerSupabaseClient();
 
       const [songsRes, playlistsRes, artistsRes, venuesRes, votesRes] = await Promise.all([
-        supabase.from('songs').select('id, votes, plays', { count: 'exact' }),
+        supabase.from('songs').select('id, title, artist, votes, plays', { count: 'exact' }),
         supabase.from('playlists').select('id', { count: 'exact' }),
         supabase.from('artists').select('id', { count: 'exact' }),
-        supabase.from('venues').select('id, open', { count: 'exact' }),
+        supabase.from('venues').select('id, isOpen', { count: 'exact' }),
         supabase.from('votes').select('id', { count: 'exact' }),
       ]);
 
       const songs = songsRes.data ?? [];
-      const openVenues = (venuesRes.data ?? []).filter((v: any) => v.open).length;
+      const openVenues = (venuesRes.data ?? []).filter((v: any) => v.isOpen).length;
       const totalVotes = songsRes.data?.reduce((acc: number, s: any) => acc + (s.votes ?? 0), 0) ?? 0;
       const totalPlays = songsRes.data?.reduce((acc: number, s: any) => acc + (s.plays ?? 0), 0) ?? 0;
 
