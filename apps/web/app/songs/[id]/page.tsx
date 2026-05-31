@@ -125,6 +125,23 @@ export default function SongPage() {
                 {voted ? '✓ Voted!' : 'Vote for this song'}
               </button>
             </div>
+              {song.spotifyId && (
+                <div className="mt-8">
+                  <iframe
+                    title="Spotify player"
+                    src={`https://open.spotify.com/embed/track/${song.spotifyId}`}
+                    width="100%"
+                    height="152"
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    loading="lazy"
+                    style={{ borderRadius: 12 }}
+                  />
+                </div>
+              )}
+              {!song.spotifyId && song.previewUrl && (
+                <audio controls src={song.previewUrl} className="mt-8 w-full" />
+              )}
           </div>
         </div>
       </div>
