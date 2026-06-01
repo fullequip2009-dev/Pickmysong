@@ -37,7 +37,7 @@ export default function BrandRegisterPage() {
       const res = await fetch('/api/brands', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({...form, contact_email: form.email}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al registrar marca');
