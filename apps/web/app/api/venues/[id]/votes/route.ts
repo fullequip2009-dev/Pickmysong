@@ -16,24 +16,39 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const { createServerSupabaseClient } = await import('../../../../../lib/supabase');
     const supabase = await createServerSupabaseClient();
 
-    const { data: votes, error } = await supabase
+    // 1) Read all votes for this venue
+    const { data: votes, error: votesError } = await supabase
       .from('votes')
-      .select('songId, userId, createdAt, users:userId ( id, name, avatar )')
+      .select('songId, userId, createdAt')
       .eq('venueId', venueId)
       .order('createdAt', { ascending: false });
 
-    if (error) {
-      console.error('[/api/venues/[id]/votes] error:', error);
+    if (votesError) {
+      console.error('[/api/venues/[id]/votes] votes error:', votesError);
       return NextResponse.json({ voters: {} });
     }
 
-    // Group voters by songId -> [{ id, name, avatar }]
-    const voters: Record<string, any[]> = {};
-    for (const v of votes ?? []) {
-      const u = v.users || {};
+    if (!votes || votes.length === 0) {
+      return NextResponse.json({ voters: {} });
+    }
+
+    // 2) Resolve the distinct users in one query
+    const userIds = [...new Set(votes.map((v) => v.userId))];
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, name, avatar')
+      .in('id', userIds);
+
+    const userById = {};
+    for (const u of users ?? []) userById[u.id] = u;
+
+    // 3) Group voters by songId -> [{ id, name, avatar }]
+    const voters = {};
+    for (const v of votes) {
+      const u = userById[v.userId] || {};
       if (!voters[v.songId]) voters[v.songId] = [];
       voters[v.songId].push({
-        id: u.id ?? v.userId,
+        id: v.userId,
         name: u.name ?? 'Anónimo',
         avatar: u.avatar ?? null,
       });
