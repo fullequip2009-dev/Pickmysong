@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // GET /api/songs/veto?venue_id=xxx - List vetoed songs and genres for a venue
 export async function GET(request: Request) {
@@ -8,14 +13,12 @@ export async function GET(request: Request) {
     const venueId = searchParams.get('venue_id');
     if (!venueId) return NextResponse.json({ error: 'venue_id required' }, { status: 400 });
 
-    const supabase = await createServerSupabaseClient();
-
-    const { data: songs, error: songsErr } = await supabase
+    const { data: songs, error: songsErr } = await supabaseAdmin
       .from('songs')
       .select('id, spotify_id, title, artist, genre, vetoed')
       .eq('venue_id', venueId);
 
-    const { data: genres, error: genresErr } = await supabase
+    const { data: genres, error: genresErr } = await supabaseAdmin
       .from('venue_genre_rules')
       .select('*')
       .eq('venue_id', venueId);
@@ -23,7 +26,6 @@ export async function GET(request: Request) {
     if (songsErr || genresErr) {
       return NextResponse.json({ error: 'Failed to fetch rules' }, { status: 500 });
     }
-
     return NextResponse.json({ songs: songs || [], genres: genres || [] });
   } catch (error) {
     console.error('GET veto error:', error);
@@ -38,18 +40,22 @@ export async function POST(request: Request) {
     if (!venue_id || !spotify_id) {
       return NextResponse.json({ error: 'venue_id and spotify_id required' }, { status: 400 });
     }
-
-    const supabase = await createServerSupabaseClient();
-
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('songs')
       .upsert(
-        { venue_id, spotify_id, title, artist, genre, vetoed: vetoed !== false, updated_at: new Date().toISOString() },
+        {
+          venue_id,
+          spotify_id,
+          title,
+          artist,
+          genre,
+          vetoed: vetoed !== false,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: 'venue_id,spotify_id' }
       )
       .select()
       .single();
-
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ song: data });
   } catch (error) {
@@ -64,11 +70,8 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const songId = searchParams.get('song_id');
     if (!songId) return NextResponse.json({ error: 'song_id required' }, { status: 400 });
-
-    const supabase = await createServerSupabaseClient();
-    const { error } = await supabase.from('songs').delete().eq('id', songId);
+    const { error } = await supabaseAdmin.from('songs').delete().eq('id', songId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE veto error:', error);
