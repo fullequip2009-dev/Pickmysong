@@ -206,6 +206,10 @@ model Brand {
   tier        BrandTier @default(partner)
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
+  contact_email  String?
+  sector         String?
+  contact_name   String?
+  contact_phone  String?
   @@map("brands")
 }
 
