@@ -5,6 +5,8 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
 // Returns, grouped by song, who voted at this venue (name + avatar)
 // so the venue page can show the community behind each track.
+// Reads from the public_profiles view (id, name, avatar only) so it never
+// exposes sensitive user data even without an authenticated session.
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const venueId = params.id;
 
@@ -32,15 +34,15 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ voters: {} });
     }
 
-    // 2) Resolve the distinct users in one query
+    // 2) Resolve the distinct users via the public_profiles view (safe fields only)
     const userIds = [...new Set(votes.map((v) => v.userId))];
-    const { data: users } = await supabase
-      .from('users')
+    const { data: profiles } = await supabase
+      .from('public_profiles')
       .select('id, name, avatar')
       .in('id', userIds);
 
     const userById = {};
-    for (const u of users ?? []) userById[u.id] = u;
+    for (const u of profiles ?? []) userById[u.id] = u;
 
     // 3) Group voters by songId -> [{ id, name, avatar }]
     const voters = {};
