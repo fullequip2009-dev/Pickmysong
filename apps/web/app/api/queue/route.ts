@@ -46,8 +46,66 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: true })
       .limit(50);
     if (error) throw error;
-    return NextResponse.json({ queue: data ?? [] });
-  } catch (err) {
+    // Si la cola está vacía, devolver canciones mock para demo
+    const queueData = data && data.length > 0 ? data : [
+      {
+        id: 'mock_1',
+        bids: 15,
+        position: 1,
+        created_at: new Date().toISOString(),
+        songs: {
+          id: 'song_1',
+          title: 'Bohemian Rhapsody',
+          artist: 'Queen',
+          cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300',
+          duration: 354
+        },
+        profiles: { id: 'user_1', name: 'Demo User', avatar: '' }
+      },
+      {
+        id: 'mock_2',
+        bids: 12,
+        position: 2,
+        created_at: new Date().toISOString(),
+        songs: {
+          id: 'song_2',
+          title: 'Blinding Lights',
+          artist: 'The Weeknd',
+          cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300',
+          duration: 200
+        },
+        profiles: { id: 'user_2', name: 'Music Lover', avatar: '' }
+      },
+      {
+        id: 'mock_3',
+        bids: 8,
+        position: 3,
+        created_at: new Date().toISOString(),
+        songs: {
+          id: 'song_3',
+          title: 'Hotel California',
+          artist: 'Eagles',
+          cover: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300',
+          duration: 391
+        },
+        profiles: { id: 'user_3', name: 'Rock Fan', avatar: '' }
+      },
+      {
+        id: 'mock_4',
+        bids: 5,
+        position: 4,
+        created_at: new Date().toISOString(),
+        songs: {
+          id: 'song_4',
+          title: 'Starboy',
+          artist: 'The Weeknd',
+          cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300',
+          duration: 230
+        },
+        profiles: { id: 'user_4', name: 'Party Starter', avatar: '' }
+      }
+    ];
+    return NextResponse.json({ queue: queueData ?? [] });  } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
