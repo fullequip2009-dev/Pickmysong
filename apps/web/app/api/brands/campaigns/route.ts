@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // GET /api/brands/campaigns?brand_id=xxx - List campaigns for a brand
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const brandId = searchParams.get('brand_id');
-    const supabase = await createServerSupabaseClient();
 
-    let query = supabase
+    let query = supabaseAdmin
       .from('brand_campaigns')
       .select('*, brands(name, logo_url)')
       .order('created_at', { ascending: false });
@@ -17,6 +21,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
     return NextResponse.json({ campaigns: data || [] });
   } catch (error) {
     console.error('GET campaigns error:', error);
@@ -34,9 +39,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'brand_id, name and budget_credits required' }, { status: 400 });
     }
 
-    const supabase = await createServerSupabaseClient();
-
-    const { data: campaign, error: campaignErr } = await supabase
+    const { data: campaign, error: campaignErr } = await supabaseAdmin
       .from('brand_campaigns')
       .insert({
         brand_id,
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
 
     // If promo codes are defined, create them
     if (promo_codes && promo_codes.length > 0 && campaign) {
-      const codes = promo_codes.map((code: any) => ({
+      const codes = promo_codes.map((code: { code: string; discount_credits?: number; max_uses?: number; expires_at?: string }) => ({
         campaign_id: campaign.id,
         brand_id,
         code: code.code,
@@ -68,8 +71,7 @@ export async function POST(request: Request) {
         expires_at: code.expires_at || end_date,
         created_at: new Date().toISOString(),
       }));
-
-      await supabase.from('promo_codes').insert(codes);
+      await supabaseAdmin.from('promo_codes').insert(codes);
     }
 
     return NextResponse.json({ campaign }, { status: 201 });
@@ -83,15 +85,16 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const { campaign_id, status, budget_credits, end_date } = await request.json();
+
     if (!campaign_id) return NextResponse.json({ error: 'campaign_id required' }, { status: 400 });
 
-    const supabase = await createServerSupabaseClient();
-    const updateData: any = { updated_at: new Date().toISOString() };
+    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
     if (status) updateData.status = status;
     if (budget_credits !== undefined) updateData.budget_credits = budget_credits;
     if (end_date) updateData.end_date = end_date;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('brand_campaigns')
       .update(updateData)
       .eq('id', campaign_id)
@@ -99,6 +102,7 @@ export async function PATCH(request: Request) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
     return NextResponse.json({ campaign: data });
   } catch (error) {
     console.error('PATCH campaigns error:', error);
