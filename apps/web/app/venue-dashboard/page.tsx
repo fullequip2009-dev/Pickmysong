@@ -226,12 +226,14 @@ export default function VenueDashboard() {
           >
             Conectar Spotify
           </button>
+      ) : (
                     <button
                 onClick={disconnectSpotify}
                 className="mt-3 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded"
               >
                 Desconectar Spotify
               </button>
+      )}
         ) : nowPlaying?.playing && nowPlaying.track ? (
           <div className="flex items-center gap-4 bg-gray-900 rounded-xl p-4">
             {nowPlaying.track.image && (
