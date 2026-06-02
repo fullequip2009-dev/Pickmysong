@@ -247,7 +247,7 @@ export default function VenueDashboard() {
            {spotifyConnected && (
        <button
         onClick={disconnectSpotify}
-        className="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded mt-4"
+        className="bg-red-700 hover:bg-red-600 text-white  font-bold py-2 px-6 rounded mt-4"
        >
         Desconectar Spotify
        </button>
