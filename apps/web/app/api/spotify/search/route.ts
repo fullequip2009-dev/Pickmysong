@@ -1,4 +1,4 @@
-// GET /api/spotify/search?q=song+name&venue_id=xxx - Issue #27
+// GET /api/spotify/search?q=song+name&venue_id=xxx — Issue #27
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -53,33 +53,66 @@ export async function GET(request: Request) {
     const q = searchParams.get('q');
     const venueId = searchParams.get('venue_id');
 
-    if (!q || !venueId)
+    if (!q || !venueId) {
       return NextResponse.json({ error: 'q and venue_id required' }, { status: 400 });
+    }
 
     const accessToken = await getVenueSpotifyToken(venueId);
-    if (!accessToken)
-      return NextResponse.json({ error: 'No valid Spotify token for venue' }, { status: 401 });
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: 'No valid Spotify token for venue' },
+        { status: 401 }
+      );
+    }
 
+    // Fetch venue_rules for veto filtering
+    const { data: rules } = await supabaseAdmin
+      .from('venue_rules')
+      .select('rule_type, value')
+      .eq('venue_id', venueId)
+      .in('rule_type', ['veto_track', 'veto_artist']);
+
+    const vetoTracks = rules?.filter(r => r.rule_type === 'veto_track').map(r => r.value) ?? [];
+    const vetoArtists = rules?.filter(r => r.rule_type === 'veto_artist').map((r: { value: string }) => r.value.toLowerCase()) ?? [];
+
+    // Search Spotify
     const spotifyRes = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`,
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=20`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    if (!spotifyRes.ok)
-      return NextResponse.json({ error: 'Spotify search failed' }, { status: spotifyRes.status });
+    if (!spotifyRes.ok) {
+      return NextResponse.json(
+        { error: 'Spotify search failed' },
+        { status: spotifyRes.status }
+      );
+    }
 
     const data = await spotifyRes.json();
-    const tracks = data.tracks.items.map((track: any) => ({
-      id: track.id,
-      name: track.name,
-      artists: track.artists.map((a: any) => a.name),
-      album: track.album.name,
-      image: track.album.images?.[0]?.url,
-      duration_ms: track.duration_ms,
-      uri: track.uri,
-    }));
 
-    return NextResponse.json({ tracks });
+    // Map tracks and apply veto filters
+    const tracks = data.tracks.items
+      .map((track: any) => ({
+        id: track.id,
+        uri: track.uri,
+        name: track.name,
+        artists: track.artists.map((a: any) => a.name),
+        album: track.album.name,
+        image: track.album.images?.[0]?.url,
+        duration_ms: track.duration_ms,
+        preview_url: track.preview_url,
+        explicit: track.explicit,
+      }))
+      .filter((track: any) => {
+        // Filter vetoed tracks
+        if (vetoTracks.includes(track.id)) return false;
+        // Filter vetoed artists
+        if (track.artists.some((a: string) => vetoArtists.includes(a.toLowerCase()))) return false;
+        return true;
+      })
+      .slice(0, 10);
+
+    return NextResponse.json({ tracks, total: data.tracks.total });
   } catch (error) {
     console.error('Spotify search error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
