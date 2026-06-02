@@ -66,14 +66,14 @@ function VenueCard({ venue }: { venue: Venue }) {
           )}
           {venue.isOpen && venue.capacity && (
             <div className="mb-3">
-              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Ocupaci&#243;n</span><span>{pct}%</span></div>
+              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Ocupación</span><span>{pct}%</span></div>
               <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div className={'h-full rounded-full transition-all ' + occupancyColor} style={{ width: pct + '%' }} />
               </div>
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">{venue.isOpen ? 'Votaciones activas' : 'Pr&#243;ximamente'}</span>
+            <span className="text-xs text-gray-500">{venue.isOpen ? 'Votaciones activas' : 'Próximamente'}</span>
             <span className="text-xs font-semibold text-purple-400 group-hover:text-purple-300">Entrar &#8594;</span>
           </div>
         </div>
