@@ -126,7 +126,7 @@ export default function DiscoverPage() {
                     {v.coverImage ? (
                       <img src={v.coverImage} alt={v.name} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-800 to-pink-800 flex items-center justify-center text-xs">&#127925;</div>
+                      <div className="w-full h-full bg-gradient-to-br from-purple-800 to-pink-800 flex items-center justify-center text-xs">🎵;</div>
                     )}
                   </div>
                   <div>
@@ -149,7 +149,7 @@ export default function DiscoverPage() {
               onClick={() => setActiveTab(tab)}
               className={activeTab === tab ? 'px-5 py-2 rounded-lg text-sm font-semibold bg-purple-600 text-white transition-all' : 'px-5 py-2 rounded-lg text-sm font-semibold text-gray-400 hover:text-white transition-all'}
             >
-              {tab === 'songs' ? '&#127925; Canciones' : tab === 'venues' ? '&#127979; Locales' : '&#127900; Artistas'}
+              {tab === 'songs' ? '🎵; Canciones' : tab === 'venues' ? '🏫 Locales' : '🎤 Artistas'}
             </button>
           ))}
         </div>
@@ -208,7 +208,7 @@ export default function DiscoverPage() {
                       disabled={hasVoted}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${hasVoted ? 'bg-purple-600/30 text-purple-400 cursor-default' : 'bg-purple-600 hover:bg-purple-500 text-white active:scale-95'}`}
                     >
-                      {hasVoted ? '&#10003;' : '&#9650;'}
+                      {hasVoted ? '&#10003;' : '▲'}
                     </button>
                   </div>
                 </div>
@@ -223,7 +223,7 @@ export default function DiscoverPage() {
                   {v.coverImage ? (
                     <img src={v.coverImage} alt={v.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center text-2xl">&#127925;</div>
+                    <div className="w-full h-full bg-gradient-to-br from-purple-900 to-pink-900 flex items-center justify-center text-2xl">🎵;</div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
