@@ -165,6 +165,17 @@ export default function VenueDashboard() {
     if (data.url) window.location.href = data.url;
   };
 
+    const disconnectSpotify = async () => {
+    if (!venueId) return;
+    await fetch('/api/spotify/queue', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ venue_id: venueId }),
+    });
+    setSpotifyConnected(false);
+    setMessage('Spotify desconectado.');
+  };
+
   const updateStatus = async (itemId: string, newStatus: QueueStatus) => {
     if (newStatus === 'playing' && blockingNext) {
       setMessage('No se puede cambiar la cancion: quedan menos de 20 segundos para que acabe la actual.');
@@ -233,6 +244,14 @@ export default function VenueDashboard() {
           </div>
         ) : (
           <p className="text-gray-500">Spotify conectado &mdash; No hay nada reproduciendose</p>
+           {spotifyConnected && (
+       <button
+        onClick={disconnectSpotify}
+        className="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-6 rounded mt-4"
+       >
+        Desconectar Spotify
+       </button>
+     )}
         )}
       </section>
 
