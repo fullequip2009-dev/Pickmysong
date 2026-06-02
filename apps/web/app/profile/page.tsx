@@ -1,257 +1,255 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-const MOCK_USER = {
-  id: '1',
-  name: 'Carlos Mendoza',
-  email: 'carlos@pickmysong.com',
-  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carlos',
-  level: 12,
-  xp: 2840,
-  xpToNext: 3000,
-  totalVotes: 342,
-  songsAdded: 28,
-  venuesVisited: 15,
-  joinedDate: 'Enero 2025',
-  favoriteGenre: 'House',
-  rank: 'Gold',
-};
+interface CreditLog {
+  id: string;
+  amount: number;
+  type: string;
+  reference?: string;
+  created_at: string;
+}
 
-const ACHIEVEMENTS = [
-  { id: 1, title: 'Primer voto', description: 'Votaste tu primera cancion', icon: '🎵', unlocked: true, date: 'Hace 3 meses' },
-  { id: 2, title: 'Buen gusto', description: '10 votos ganadores seguidos', icon: '🏆', unlocked: true, date: 'Hace 2 meses' },
-  { id: 3, title: 'Explorador', description: 'Visitaste 5 locales distintos', icon: '🗺️', unlocked: true, date: 'Hace 1 mes' },
-  { id: 4, title: 'DJ en ciernes', description: 'Añadiste 10 canciones a playlists', icon: '🎧', unlocked: true, date: 'Hace 3 semanas' },
-  { id: 5, title: 'Leyenda local', description: 'Votaste en 50 canciones', icon: '⭐', unlocked: true, date: 'Hace 1 semana' },
-  { id: 6, title: 'Trendsetter', description: 'Tu cancion fue #1 en un local', icon: '🔥', unlocked: false, progress: 75 },
-  { id: 7, title: 'Viajero del ritmo', description: 'Visita 20 locales distintos', icon: '✈️', unlocked: false, progress: 60 },
-  { id: 8, title: 'Maestro del beat', description: 'Acumula 5000 XP', icon: '💎', unlocked: false, progress: 57 },
-  { id: 9, title: 'Embajador', description: 'Invita a 5 amigos', icon: '👥', unlocked: false, progress: 40 },
-];
+interface CreditPack {
+  id: string;
+  credits: number;
+  price: number;
+  label: string;
+}
 
-const VOTE_HISTORY = [
-  { song: 'Blinding Lights', artist: 'The Weeknd', venue: 'Sala Apolo', result: 'winner', xp: 15, date: 'Hace 2 horas' },
-  { song: 'Levitating', artist: 'Dua Lipa', venue: 'Club Opium', result: 'winner', xp: 15, date: 'Ayer' },
-  { song: 'Save Your Tears', artist: 'The Weeknd', venue: 'Razzmatazz', result: 'loser', xp: 5, date: 'Ayer' },
-  { song: 'Industry Baby', artist: 'Lil Nas X', venue: 'Sala Apolo', result: 'winner', xp: 15, date: 'Hace 2 dias' },
-  { song: 'STAY', artist: 'The Kid LAROI', venue: 'Sutton Club', result: 'winner', xp: 15, date: 'Hace 3 dias' },
-];
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  created_at?: string;
+}
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<'achievements' | 'history' | 'stats'>('achievements');
-  const xpPercent = Math.round((MOCK_USER.xp / MOCK_USER.xpToNext) * 100);
+  const [activeTab, setActiveTab] = useState<'credits' | 'history' | 'promo'>('credits');
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [history, setHistory] = useState<CreditLog[]>([]);
+  const [packs, setPacks] = useState<CreditPack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoMsg, setPromoMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [credRes, authRes] = await Promise.all([
+          fetch('/api/credits'),
+          fetch('/api/auth/me').catch(() => null),
+        ]);
+        if (credRes.ok) {
+          const d = await credRes.json();
+          setBalance(d.balance ?? 0);
+          setHistory(d.history ?? []);
+          setPacks(d.packs ?? []);
+        }
+        if (authRes && authRes.ok) {
+          const u = await authRes.json();
+          setUser(u.user ?? u);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  async function handlePurchase(packId: string) {
+    setPurchasing(packId);
+    try {
+      const res = await fetch('/api/credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pack_id: packId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBalance(data.new_balance ?? balance);
+        setHistory(prev => [{ id: Date.now().toString(), amount: data.credits_added, type: 'purchase', created_at: new Date().toISOString() }, ...prev]);
+      } else {
+        alert(data.error || 'Error al comprar creditos');
+      }
+    } finally {
+      setPurchasing(null);
+    }
+  }
+
+  async function handleRedeem() {
+    if (!promoCode.trim()) return;
+    setRedeeming(true);
+    setPromoMsg(null);
+    try {
+      const res = await fetch('/api/promo-codes/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBalance(prev => prev + (data.credits_added ?? 0));
+        setPromoMsg({ type: 'ok', text: `Codigo canjeado! +${data.credits_added} creditos` });
+        setPromoCode('');
+      } else {
+        setPromoMsg({ type: 'err', text: data.error || 'Codigo invalido' });
+      }
+    } finally {
+      setRedeeming(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const displayName = user?.name || user?.email?.split('@')[0] || 'Usuario';
+  const avatarSeed = displayName.replace(/\s/g, '');
+  const avatarUrl = user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`;
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-pink-600/10 rounded-full blur-3xl" />
+      {/* Header */}
+      <div className="relative h-40 bg-gradient-to-br from-purple-900/60 via-black to-pink-900/40">
+        <Link href="/" className="absolute top-4 left-4 flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-2 rounded-full text-sm hover:bg-black/60">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Inicio
+        </Link>
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 py-8">
-        {/* Header Card */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 mb-6">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-purple-500/50 bg-purple-900/30">
-                <img src={MOCK_USER.avatar} alt={MOCK_USER.name} className="w-full h-full object-cover" />
-              </div>
-              <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-yellow-500 to-yellow-300 text-black">
-                {MOCK_USER.rank}
-              </div>
-            </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h1 className="text-2xl font-bold mb-1">{MOCK_USER.name}</h1>
-              <p className="text-gray-400 text-sm mb-3">{MOCK_USER.email} · Miembro desde {MOCK_USER.joinedDate}</p>
-              <div className="mb-3">
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-purple-400 font-semibold">Nivel {MOCK_USER.level}</span>
-                  <span className="text-gray-400">{MOCK_USER.xp.toLocaleString()} / {MOCK_USER.xpToNext.toLocaleString()} XP</span>
-                </div>
-                <div className="h-3 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000"
-                    style={{ width: xpPercent + '%' }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{MOCK_USER.xpToNext - MOCK_USER.xp} XP para nivel {MOCK_USER.level + 1}</p>
-              </div>
-              <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
-                <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/30 rounded-full text-xs text-purple-300">
-                  🎵 {MOCK_USER.favoriteGenre}
-                </span>
-                <span className="px-3 py-1 bg-pink-500/20 border border-pink-500/30 rounded-full text-xs text-pink-300">
-                  🔥 Top votante
-                </span>
-              </div>
-            </div>
-            <button className="px-4 py-2 border border-white/20 rounded-lg text-sm text-gray-300 hover:border-purple-500/50 hover:text-white transition-all">
-              Editar perfil
-            </button>
+      {/* Avatar + Name */}
+      <div className="max-w-2xl mx-auto px-4">
+        <div className="-mt-16 mb-6 flex items-end gap-4">
+          <div className="w-28 h-28 rounded-2xl border-4 border-black overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0">
+            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
           </div>
-          <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
-            {[
-              { label: 'Votos totales', value: MOCK_USER.totalVotes, icon: '🗳️' },
-              { label: 'Songs añadidas', value: MOCK_USER.songsAdded, icon: '🎵' },
-              { label: 'Locales visitados', value: MOCK_USER.venuesVisited, icon: '📍' },
-            ].map(stat => (
-              <div key={stat.label} className="text-center">
-                <div className="text-2xl mb-1">{stat.icon}</div>
-                <div className="text-xl font-bold text-white">{stat.value}</div>
-                <div className="text-xs text-gray-400">{stat.label}</div>
-              </div>
-            ))}
+          <div className="pb-2">
+            <h1 className="text-2xl font-bold">{displayName}</h1>
+            {user?.email && <p className="text-gray-400 text-sm">{user.email}</p>}
           </div>
         </div>
 
+        {/* Balance card */}
+        <div className="mb-6 bg-gradient-to-r from-purple-900/50 to-pink-900/50 border border-purple-500/30 rounded-2xl p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Saldo de creditos</p>
+            <p className="text-4xl font-bold">{balance} <span className="text-lg text-purple-400">cr</span></p>
+          </div>
+          <div className="text-5xl">🪙</div>
+        </div>
+
         {/* Tabs */}
-        <div className="flex gap-1 bg-white/5 p-1 rounded-xl mb-6">
-          {(['achievements', 'history', 'stats'] as const).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={'flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ' + (
-                activeTab === tab
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white'
-              )}
-            >
-              {tab === 'achievements' ? '🏆 Logros' : tab === 'history' ? '📋 Historial' : '📊 Stats'}
+        <div className="flex gap-2 mb-6">
+          {(['credits', 'history', 'promo'] as const).map(t => (
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                activeTab === t ? 'bg-purple-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+              }`}>
+              {t === 'credits' ? '💳 Comprar' : t === 'history' ? '📋 Historial' : '🎟️ Canjear'}
             </button>
           ))}
         </div>
 
-        {/* Achievements */}
-        {activeTab === 'achievements' && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold">Logros obtenidos</h2>
-              <span className="text-sm text-gray-400">{ACHIEVEMENTS.filter(a => a.unlocked).length} / {ACHIEVEMENTS.length}</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {ACHIEVEMENTS.map(achievement => (
-                <div
-                  key={achievement.id}
-                  className={'p-4 rounded-xl border transition-all ' + (
-                    achievement.unlocked
-                      ? 'bg-white/5 border-purple-500/30 hover:border-purple-500/60'
-                      : 'bg-white/2 border-white/5 opacity-60'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={'text-3xl ' + (!achievement.unlocked ? 'grayscale' : '')}>
-                      {achievement.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm">{achievement.title}</h3>
-                        {achievement.unlocked && <span className="text-xs text-green-400">✓</span>}
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">{achievement.description}</p>
-                      {achievement.unlocked ? (
-                        <p className="text-xs text-purple-400">{achievement.date}</p>
-                      ) : (
-                        <div>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Progreso</span>
-                            <span>{achievement.progress}%</span>
-                          </div>
-                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                              style={{ width: achievement.progress + '%' }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
+        {/* Credits Tab */}
+        {activeTab === 'credits' && (
+          <div className="space-y-3 pb-10">
+            {packs.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <p className="text-4xl mb-3">💳</p>
+                <p>Packs de creditos no disponibles</p>
+              </div>
+            ) : packs.map(pack => (
+              <div key={pack.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-purple-500/40 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-xl font-bold">
+                    🪙
+                  </div>
+                  <div>
+                    <p className="font-semibold">{pack.label}</p>
+                    <p className="text-sm text-purple-400">{pack.credits} creditos</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <button
+                  onClick={() => handlePurchase(pack.id)}
+                  disabled={purchasing === pack.id}
+                  className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50">
+                  {purchasing === pack.id ? '...' : `${pack.price.toFixed(2)}€`}
+                </button>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* History */}
+        {/* History Tab */}
         {activeTab === 'history' && (
-          <div>
-            <h2 className="text-lg font-bold mb-4">Historial de votos</h2>
-            <div className="space-y-2">
-              {VOTE_HISTORY.map((vote, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 bg-white/5 border border-white/10 rounded-xl hover:border-white/20 transition-all">
-                  <div className={'w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ' + (
-                    vote.result === 'winner' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                  )}>
-                    {vote.result === 'winner' ? '↑' : '↓'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{vote.song}</p>
-                    <p className="text-xs text-gray-400">{vote.artist} · {vote.venue}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className={'text-sm font-bold ' + (vote.result === 'winner' ? 'text-green-400' : 'text-gray-500')}>
-                      +{vote.xp} XP
-                    </p>
-                    <p className="text-xs text-gray-500">{vote.date}</p>
-                  </div>
+          <div className="space-y-2 pb-10">
+            {history.length === 0 ? (
+              <div className="text-center py-10 text-gray-500">
+                <p className="text-4xl mb-3">📋</p>
+                <p>Sin movimientos aun</p>
+              </div>
+            ) : history.map(log => (
+              <div key={log.id} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium capitalize">{log.type === 'bid' ? 'Puja de cancion' : log.type === 'purchase' ? 'Compra de creditos' : log.type === 'promo' ? 'Codigo promo' : log.type}</p>
+                  <p className="text-xs text-gray-500">{new Date(log.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                 </div>
-              ))}
-            </div>
+                <span className={`font-bold text-lg ${log.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {log.amount > 0 ? '+' : ''}{log.amount}
+                </span>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Stats */}
-        {activeTab === 'stats' && (
-          <div>
-            <h2 className="text-lg font-bold mb-4">Estadisticas detalladas</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { label: 'XP total ganada', value: '2,840', sub: '+150 esta semana' },
-                { label: 'Tasa de acierto', value: '78%', sub: 'de canciones ganadoras' },
-                { label: 'Racha actual', value: '5', sub: 'votos ganadores seguidos' },
-                { label: 'Mejor racha', value: '12', sub: 'record personal' },
-                { label: 'Local favorito', value: 'Sala Apolo', sub: '47 visitas' },
-                { label: 'Genero mas votado', value: 'House', sub: '42% de tus votos' },
-              ].map(stat => (
-                <div key={stat.label} className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                  <p className="text-xs text-gray-400 mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-white mb-1">{stat.value}</p>
-                  <p className="text-xs text-gray-500">{stat.sub}</p>
+        {/* Promo Tab */}
+        {activeTab === 'promo' && (
+          <div className="pb-10">
+            <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-500/30 rounded-2xl p-6">
+              <h3 className="font-bold text-lg mb-1">🎟️ Canjear codigo promocional</h3>
+              <p className="text-gray-400 text-sm mb-4">Introduce el codigo que recibirte del local o marca</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="CODIGO-PROMO"
+                  maxLength={20}
+                  className="flex-1 bg-black/40 border border-white/20 rounded-xl px-4 py-3 text-white font-mono tracking-widest placeholder-gray-600 focus:outline-none focus:border-yellow-500/50 uppercase"
+                />
+                <button
+                  onClick={handleRedeem}
+                  disabled={redeeming || !promoCode.trim()}
+                  className="px-5 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-xl font-semibold text-sm hover:opacity-90 transition-all disabled:opacity-50">
+                  {redeeming ? '...' : 'Canjear'}
+                </button>
+              </div>
+              {promoMsg && (
+                <div className={`mt-3 px-4 py-3 rounded-xl text-sm font-medium ${
+                  promoMsg.type === 'ok' ? 'bg-green-900/40 text-green-400 border border-green-500/30' : 'bg-red-900/40 text-red-400 border border-red-500/30'
+                }`}>
+                  {promoMsg.text}
                 </div>
-              ))}
+              )}
             </div>
-            <div className="mt-4 p-4 bg-white/5 border border-white/10 rounded-xl">
-              <h3 className="text-sm font-semibold mb-4">Generos votados</h3>
-              {[
-                { genre: 'House', pct: 42 },
-                { genre: 'Pop', pct: 28 },
-                { genre: 'Hip-Hop', pct: 18 },
-                { genre: 'Reggaeton', pct: 12 },
-              ].map(g => (
-                <div key={g.genre} className="mb-3">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-300">{g.genre}</span>
-                    <span className="text-gray-400">{g.pct}%</span>
-                  </div>
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
-                      style={{ width: g.pct + '%' }}
-                    />
-                  </div>
-                </div>
-              ))}
+
+            <div className="mt-6 text-center text-gray-600 text-sm">
+              <p>¿No tienes codigo? Visita un local adherido y pidelo al DJ 🎧</p>
             </div>
           </div>
         )}
-
-        <div className="mt-8 text-center">
-          <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
-            ← Volver al inicio
-          </Link>
-        </div>
       </div>
     </div>
   );
