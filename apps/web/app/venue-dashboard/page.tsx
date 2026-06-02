@@ -165,7 +165,6 @@ export default function VenueDashboard() {
     if (data.url) window.location.href = data.url;
   };
 
-
   const updateStatus = async (itemId: string, newStatus: QueueStatus) => {
     if (newStatus === 'playing' && blockingNext) {
       setMessage('No se puede cambiar la cancion: quedan menos de 20 segundos para que acabe la actual.');
@@ -213,14 +212,6 @@ export default function VenueDashboard() {
           >
             Conectar Spotify
           </button>
-      ) : (
-                    <button
-                onClick={disconnectSpotify}
-                className="mt-3 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded"
-              >
-                Desconectar Spotify
-              </button>
-      )}
         ) : nowPlaying?.playing && nowPlaying.track ? (
           <div className="flex items-center gap-4 bg-gray-900 rounded-xl p-4">
             {nowPlaying.track.image && (
@@ -234,12 +225,6 @@ export default function VenueDashboard() {
                 <p className="text-yellow-400 text-xs mt-1 font-semibold">
                   Bloqueo activo: menos de 20s para que acabe
                 </p>
-                          <button
-                onClick={disconnectSpotify}
-                className="mt-3 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded"
-              >
-                Desconectar Spotify
-              </button>
               )}
             </div>
             <span className="bg-green-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
@@ -248,12 +233,6 @@ export default function VenueDashboard() {
           </div>
         ) : (
           <p className="text-gray-500">Spotify conectado &mdash; No hay nada reproduciendose</p>
-                  <button
-              onClick={disconnectSpotify}
-              className="mt-3 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded"
-            >
-              Desconectar Spotify
-            </button>
         )}
       </section>
 
