@@ -165,19 +165,6 @@ export default function VenueDashboard() {
     if (data.url) window.location.href = data.url;
   };
 
-    const disconnectSpotify = async () => {
-    if (!venueId) return;
-    const res = await fetch('/api/spotify/disconnect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ venue_id: venueId }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setSpotifyConnected(false);
-      setMessage('Spotify desconectado correctamente');
-    }
-  };
 
   const updateStatus = async (itemId: string, newStatus: QueueStatus) => {
     if (newStatus === 'playing' && blockingNext) {
