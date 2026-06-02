@@ -100,7 +100,7 @@ export default function PlaylistsPage() {
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-gray-300 font-bold">{playlist.songCount || 0} canciones</span>
                     <span className="text-purple-400 text-sm">{(playlist.totalVotes || 0).toLocaleString()} votos</span>
-                    <span className="text-gray-600 text-xs mt-1">{expanded === playlist.id ? '▲ cerrar' : '&#9660; ver lista'}</span>
+                    <span className="text-gray-600 text-xs mt-1">{expanded === playlist.id ? '▲ cerrar' : '▼ ver lista'}</span>
                   </div>
                 </button>
                 {expanded === playlist.id && playlist.songs && playlist.songs.length > 0 && (
