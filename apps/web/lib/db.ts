@@ -1,3 +1,4 @@
+// @deprecated — usar Supabase Auth + tablas snake_case (queue/songs/venues). DB en memoria legacy.
 // ============================================================
 //  Pickmysong — In-Memory Demo DB
 //  Rich demo data: venues, brands, users, playlists, songs

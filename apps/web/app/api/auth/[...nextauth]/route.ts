@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @deprecated — usar Supabase Auth. NextAuth se mantiene temporalmente; migrar y eliminar.
 import NextAuth from 'next-auth';
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';

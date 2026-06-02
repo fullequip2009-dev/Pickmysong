@@ -1,4 +1,5 @@
 // @ts-nocheck
+// @deprecated — usar Supabase Auth + tabla `queue`. Sustituido por el sistema de pujas.
 import { NextResponse } from 'next/server';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
