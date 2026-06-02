@@ -70,7 +70,7 @@ export default function PlaylistsPage() {
         <div className="flex gap-2 mb-8">
           {(['all', 'active'] as const).map(f => (
             <button key={f} onClick={() => setActiveFilter(f)} className={activeFilter === f ? 'px-5 py-2 rounded-full text-sm font-semibold bg-purple-600 text-white' : 'px-5 py-2 rounded-full text-sm font-semibold bg-gray-900/80 border border-white/10 text-gray-400 hover:text-purple-300'}>
-              {f === 'all' ? 'Todas' : '&#9679; Activas'}
+              {f === 'all' ? 'Todas' : '● Activas'}
             </button>
           ))}
         </div>
@@ -91,7 +91,7 @@ export default function PlaylistsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h3 className="text-white font-bold text-lg group-hover:text-purple-300 transition-colors truncate">{playlist.name}</h3>
-                      {playlist.isActive && (<span className="flex-shrink-0 px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full text-xs text-green-400 font-medium">&#9679; LIVE</span>)}
+                      {playlist.isActive && (<span className="flex-shrink-0 px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full text-xs text-green-400 font-medium">● LIVE</span>)}
                       {playlist.genre && (<span className="flex-shrink-0 px-2 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-full text-xs text-purple-300">{playlist.genre}</span>)}
                     </div>
                     {playlist.venueName && (<Link href={'/venues/' + playlist.venueId} onClick={e => e.stopPropagation()} className="text-purple-400 text-sm hover:text-purple-300 transition-colors">&#127979; {playlist.venueName}</Link>)}
@@ -100,7 +100,7 @@ export default function PlaylistsPage() {
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     <span className="text-gray-300 font-bold">{playlist.songCount || 0} canciones</span>
                     <span className="text-purple-400 text-sm">{(playlist.totalVotes || 0).toLocaleString()} votos</span>
-                    <span className="text-gray-600 text-xs mt-1">{expanded === playlist.id ? '&#9650; cerrar' : '&#9660; ver lista'}</span>
+                    <span className="text-gray-600 text-xs mt-1">{expanded === playlist.id ? '▲ cerrar' : '&#9660; ver lista'}</span>
                   </div>
                 </button>
                 {expanded === playlist.id && playlist.songs && playlist.songs.length > 0 && (
@@ -112,7 +112,7 @@ export default function PlaylistsPage() {
                           <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-900 to-pink-900">{song.coverUrl && <img src={song.coverUrl} alt={song.title} className="w-full h-full object-cover" />}</div>
                           <div className="flex-1 min-w-0"><p className="text-white text-sm font-medium truncate">{song.title}</p><p className="text-gray-500 text-xs">{song.artist}</p></div>
                           {song.genre && <span className="text-xs text-purple-400 flex-shrink-0">{song.genre}</span>}
-                          <span className="text-gray-400 text-sm font-semibold flex-shrink-0">{song.votes.toLocaleString()} &#9650;</span>
+                          <span className="text-gray-400 text-sm font-semibold flex-shrink-0">{song.votes.toLocaleString()} ▲</span>
                         </div>
                       ))}
                     </div>
